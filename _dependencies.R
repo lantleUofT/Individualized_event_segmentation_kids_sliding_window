@@ -1,0 +1,12 @@
+# _dependencies.R
+library(readr)
+library(purrr)
+library(tibble)
+library(tidyr)
+library(dplyr)
+library(here)
+library(yaml)
+library(smoother)
+library(data.table)
+library(slider)
+library(DescTools)

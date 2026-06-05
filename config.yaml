@@ -1,0 +1,53 @@
+# =====================================================================
+# config.yaml — Event segmentation sliding-window pipeline
+# Pipeline order: s1 harmonization -> s2 sliding_window -> s3 preprocessing -> s4 validation
+# Load in each R script with: cfg <- yaml::read_yaml("config.yaml")
+# =====================================================================
+
+paths:
+  # --- Raw inputs (Stage 1) — default to toy dirs ---#
+  confound_dir:   "Toy_data_directory/Confounds_data"
+  behavioral_dir: "Toy_data_directory/Behavioral_data"
+  phenotype_file: "Toy_data_directory/Phenotype_data/HBN_complete_Pheno.csv"
+ 
+  # --- Raw neural input (Stage 3) — default to toy dir ---#
+  neural_file:    "Toy_data_directory/Neural_data/MASTER_allSubjects_allrois_boundaries_stacked.tsv"
+ 
+  # --- Stage outputs ---
+  output_dir_s1:  "data/harmonization_output"
+  output_dir_s2:  "data/sliding_window_output"
+  output_dir_s3:  "data/final_harmonization_output"
+  output_dir_s4:  "data/validation_analysis_output"
+ 
+# --- Toy Data Generation ---#
+toy_data:
+  desired_beh_participants:    10
+  desired_neural_participants: 20
+
+# --- Stage 1: data loading & harmonization ---#
+harmonization:
+  TR_max:        750
+  hrf_shift_tr:  7
+  n_dummy_tr:    40
+  n_trs_stim:    751
+  smooth_window: 6
+ 
+# --- Stage 2: sliding window motion selection ---#
+sliding_window:
+  fd_threshold:       0.3
+  dvars_threshold:    1.5
+  win_length:         355
+  max_window_number:  1
+  adult_age_min:      16
+  age_col:            "Age"
+ 
+# --- Stage 3: preprocessing for final analysis ---#
+preprocessing:
+  neural_tr_offset: 1
+  smooth_window:    6
+ 
+# --- Stage 4: individualized validation ---#
+validation:
+  high_motion_tr_threshold: 0.2
+  fdr_method:               "BH"
+  fdr_alpha:                0.05

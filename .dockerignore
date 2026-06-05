@@ -1,0 +1,9 @@
+# Don't ship generated / local-only stuff into the image build context
+data/
+Toy_data_directory/
+.venv/
+__pycache__/
+*.pyc
+.git/
+config_local.yaml
+.DS_Store

@@ -1,0 +1,23 @@
+# Generated pipeline outputs (scripts recreate these at runtime)
+data/
+Toy_data_directory/
+
+# Local real-data config override — must never ship (restricted HBN paths)
+config_local.yaml
+
+# Python virtual environment (rebuilt from requirements.txt)
+.venv/
+__pycache__/
+*.pyc
+
+# renv library (rebuilt from renv.lock; keep the lock, not the library)
+renv/library/
+renv/local/
+renv/cellar/
+renv/staging/
+
+# OS / editor cruft
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
