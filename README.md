@@ -1,5 +1,5 @@
 # Event Segmentation Pipeline
-![pipeline](https://github.com/lantleUofT/Individualized_Event_Segmentation_Kids/actions/workflows/pipeline.yml/badge.svg)
+![pipeline](https://github.com/lantleUofT/Individualized_event_segmentation_kids_sliding_window/actions/workflows/pipeline.yml/badge.svg)
 
 A reproducible pipeline for extracting **neural event segmentation timeseries** 
 in developmental fMRI data. It conducts and runs validation of a sliding window analysis 
