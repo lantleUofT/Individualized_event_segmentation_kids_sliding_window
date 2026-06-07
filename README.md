@@ -117,7 +117,7 @@ apptainer build eventseg.sif docker-archive://eventseg-pipeline.tar
 ```
 ---
 
-
+## Expected Input
 
 ### 1. Neural state-boundary timeseries (GSBS output)
 
