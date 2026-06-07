@@ -104,8 +104,14 @@ cat(sprintf("High-motion TRs x mean boundaries: r = %.5f, t(%.0f) = %.5f, p = %.
 
 
 ###--- Pearson correlation behavioral vs neural boundary timeseries (grouped ROIs) ---###
+#pooled sample (kids + adults) for behavioral-neural analyses
+neural_confound_extracted_windows_pooled_df <- dplyr::bind_rows(
+  neural_confound_extracted_windows_df,
+  neural_confound_extracted_windows_adult_df
+)
+
 #correlate behavioral boundary density against boundary strength within each subject x ROI
-cor_stats_indiv_beh <- neural_confound_extracted_windows_df %>%
+cor_stats_indiv_beh <- neural_confound_extracted_windows_pooled_df %>%
   group_by(subject, roi) %>%
   group_modify(~ {
     ct <- cor.test(.x$norm_resamp_gaus, .x$strength_gaus, method = "pearson")
@@ -145,7 +151,7 @@ cat(sprintf("Per-subject raw r: mean = %.4f, median = %.4f, range [%.4f, %.4f]\n
 
 ###--- Pearson correlation behavioral vs neural boundary timeseries (Individual ROIs) ---###
 #correlate behavioral density against boundary strength per subject x ROI
-cor_subject_roi_beh <- neural_confound_extracted_windows_df %>%
+cor_subject_roi_beh <- neural_confound_extracted_windows_pooled_df %>%
   group_by(subject, roi) %>%
   group_modify(~ {
     x <- .x$norm_resamp_gaus
