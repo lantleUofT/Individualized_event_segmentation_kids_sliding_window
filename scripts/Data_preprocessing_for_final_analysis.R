@@ -142,6 +142,20 @@ neural_confound_extracted_windows_adult_full_df[, `:=`(
 
 
 
+#--- adult full timeseries group average (per ROI x TR) ---#
+#Average smoothed boundary and strength across adult subjects, one value per ROI x TR
+adult_full_group_avg <- neural_confound_extracted_windows_adult_full_df[
+  , .(
+    boundary_gaus_mean = mean(boundary_gaus, na.rm = TRUE),
+    strength_gaus_mean = mean(strength_gaus, na.rm = TRUE),
+    n_subj             = data.table::uniqueN(subject)
+  ),
+  by = .(roi, TR)
+]
+setorder(adult_full_group_avg, roi, TR)
+
+
+
 ###--- Save stage 3 output ---###
 saveRDS(neural_confound_extracted_windows_df,
         file.path(output_dir_s3, "neural_confound_extracted_windows_df.rds"))
@@ -159,5 +173,9 @@ saveRDS(neural_confound_extracted_windows_adult_full_df,
         file.path(output_dir_s3, "neural_confound_extracted_windows_adult_full_df.rds"))
 readr::write_csv(neural_confound_extracted_windows_adult_full_df,
                  file.path(output_dir_s3, "neural_confound_extracted_windows_adult_full_df.csv"))
+saveRDS(adult_full_group_avg,
+        file.path(output_dir_s3, "adult_full_group_avg.rds"))
+readr::write_csv(adult_full_group_avg,
+                 file.path(output_dir_s3, "adult_full_group_avg.csv"))
 
 
