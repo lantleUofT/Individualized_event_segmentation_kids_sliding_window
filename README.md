@@ -16,6 +16,36 @@ correlate with behavioral event boundaries, a hallmark of typical neural event
 segmentation studies.
 
 
+## Repo File Structure
+
+Individualized_event_segmentation_kids_sliding_window/
+├── .github/
+│   └── workflows/
+│       └── pipeline.yml
+├── scripts/
+│   ├── Toy_data_generator.py
+│   ├── Data_loading_and_harmonization.R
+│   ├── Sliding_window_analysis.R
+│   ├── Data_preprocessing_for_final_analysis.R
+│   ├── Individualized_event_segmentation_validation_kids.R
+│   ├── run_pipeline.sh
+│   └── run_pipeline_on_cluster.sh
+├── Data_gen_arrays/
+│   ├── boundary_prob_roi_tr.csv
+│   ├── confound_stats.csv
+│   ├── p_per_tr.csv
+│   └── strength_stats_roi_tr.csv
+├── .dockerignore
+├── .gitignore
+├── .here
+├── Dockerfile
+├── README.md
+├── _dependencies.R
+├── config.yaml
+├── renv.lock
+└── requirements.txt
+
+
 ## Running it
 
 The pipeline runs inside a container with two options, Docker and 
