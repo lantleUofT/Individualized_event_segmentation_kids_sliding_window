@@ -18,6 +18,7 @@ segmentation studies.
 
 ## Repo File Structure
 
+```
 Individualized_event_segmentation_kids_sliding_window/
 ├── .github/
 │   └── workflows/
@@ -44,7 +45,7 @@ Individualized_event_segmentation_kids_sliding_window/
 ├── config.yaml
 ├── renv.lock
 └── requirements.txt
-
+```
 
 ## Running it
 
