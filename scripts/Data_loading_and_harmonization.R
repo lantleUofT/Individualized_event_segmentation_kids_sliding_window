@@ -4,13 +4,10 @@ suppressPackageStartupMessages(
   invisible(lapply(libs, require, character.only = TRUE))
 )
 
-cfg <- yaml::read_yaml(here::here("config.yaml"))
+args <- commandArgs(trailingOnly = TRUE)
+config_file <- if (length(args) >= 1) args[1] else "config.yaml"
 
-local_path <- here::here("config_local.yaml")
-if (file.exists(local_path)) {
-  local <- yaml::read_yaml(local_path)
-  cfg <- modifyList(cfg, local)
-}
+cfg <- yaml::read_yaml(here::here(config_file))
 
 cfg$paths <- lapply(cfg$paths, here::here)
 
