@@ -34,6 +34,8 @@ max_window_number <- cfg$sliding_window$max_window_number
 dvars_threshold   <- cfg$sliding_window$dvars_threshold
 adult_age_min <- cfg$sliding_window$adult_age_min
 age_col       <- cfg$sliding_window$age_col
+win_length_full <- cfg$sliding_window$win_length_full
+max_w_num_full <- cfg$sliding_window$max_w_num_full
 
 
 ###--- Define Pick Best Windows Function ---###
@@ -127,7 +129,7 @@ select_one_window_per_subject <- function(windows_df, confounds_df) {
 
 
 
-###--- Apply Sliding Window Analysis ---###
+###--- Apply Sliding Window Analysis To Truncated Timeseries---###
 
 #Create table to apply sliding window analysis too
 fd_by_tr <- confounds_pheno %>%
@@ -173,24 +175,28 @@ kept_windows_confounds_pre <- kept_windows_confounds
 
 
 
-###--- Sliding window summary ---###
+###--- Sliding window truncated version summary ---###
 n_windows_kept  <- nrow(best_windows)
 n_subjects_kept <- dplyr::n_distinct(best_windows$subject)
-cat(sprintf("Sliding window: %d windows kept across %d subjects\n",
+cat(sprintf("Sliding window truncated: %d windows kept across %d subjects\n",
             n_windows_kept, n_subjects_kept))
 
 
 
 ###--- Exclude participants aged 16+ for use as "adult" sample ---###
 
-#create list of people 16+ who passed 355TR window
+#create list of people 16+ who passed the sliding window
 passed_participants_16_plus <- confounds_pheno %>%
   filter(subject %in% unique(best_windows$subject)) %>%
   distinct(subject, age = .data[[age_col]]) %>%
   filter(age >= adult_age_min) %>%
   arrange(subject)
 
-readr::write_csv(passed_participants_16_plus, file.path(output_dir_s2, "subjects_pass_355_age16plus.csv"))
+readr::write_csv(passed_participants_16_plus, file.path(output_dir_s2, "subjects_pass_window_age16plus.csv"))
+
+
+
+###--- Select best windows for child sample ---###
 
 #remove excluded subjects from best_windows and kept_windows_confounds
 best_windows_dev <- best_windows %>%
@@ -201,13 +207,18 @@ kept_windows_confounds_dev <- kept_windows_confounds %>%
 
 
 #retain 1 window per subject with closest fwd to mean fwd
-dev_sel <- select_one_window_per_subject(best_windows_dev, kept_windows_confounds_dev)
-best_windows           <- dev_sel$windows
-kept_windows_confounds <- dev_sel$confounds
-
+if (nrow(best_windows_dev) > 0) {
+  dev_sel <- select_one_window_per_subject(best_windows_dev, kept_windows_confounds_dev)
+  best_windows           <- dev_sel$windows
+  kept_windows_confounds <- dev_sel$confounds
+} else {
+  cat("Note: no child subjects passed window selection; adult outputs will be empty.\n")
+}
 
 
 ###--- Select best windows for adult sample ---###
+
+#only include 16+ subjects in best_windows_adult and kept_windows_confounds
 best_windows_adult <- best_windows_pre %>%
   semi_join(passed_participants_16_plus, by = "subject")
 
@@ -223,8 +234,81 @@ if (nrow(best_windows_adult) > 0) {
 }
 
 
+
+###--- Apply Sliding Window Analysis to Full Timeseries ---#
+
+#Select max_window_number best runs using the pick best windows function
+best_windows_full <- good_trs_tagged %>%
+  group_by(subject, run_id) %>%
+  group_modify(~ pick_best_windows(.x, keys = .y, win_len = win_length_full, max_win = max_w_num_full)) %>%
+  ungroup()
+
+#Create a long table of every subject TR pair that falls inside the kept windows
+good_trs_full <- best_windows_full %>%
+  rowwise() %>%
+  summarise(subject = subject, TR = list(seq.int(start_TR, end_TR))) %>%
+  unnest(TR)
+
+#Trim the confound dataset down to include only the kept windows
+kept_windows_confounds_full <- confounds_pheno %>%
+  semi_join(good_trs_full, by = c("subject", "TR")) %>%
+  arrange(subject, TR)
+
+#extract windows pre age exclusion
+best_windows_pre_full           <- best_windows_full
+kept_windows_confounds_pre_full <- kept_windows_confounds_full
+
+
+
+###--- Sliding window summary ---###
+n_windows_kept_full  <- nrow(best_windows_full)
+n_subjects_kept_full <- dplyr::n_distinct(best_windows_full$subject)
+cat(sprintf("Sliding window full: %d windows kept across %d subjects\n",
+            n_windows_kept_full, n_subjects_kept_full))
+
+
+
+###--- Exclude participants aged 16+ for use as "adult" sample ---###
+
+#create list of people 16+ who passed the full sliding window
+passed_participants_16_plus_full <- confounds_pheno %>%
+  filter(subject %in% unique(best_windows_full$subject)) %>%
+  distinct(subject, age = .data[[age_col]]) %>%
+  filter(age >= adult_age_min) %>%
+  arrange(subject)
+
+readr::write_csv(passed_participants_16_plus_full, file.path(output_dir_s2, "subjects_pass_window_full_age16plus.csv"))
+
+
+
+###--- Select best windows for child sample ---###
+
+#remove excluded subjects from best_windows and kept_windows_confounds
+best_windows_dev_full <- best_windows_full %>%
+  anti_join(passed_participants_16_plus_full, by = "subject")
+
+kept_windows_confounds_dev_full <- kept_windows_confounds_full %>%
+  anti_join(passed_participants_16_plus_full, by = "subject")
+
+
+
+###--- Select best windows for adult sample ---###
+
+#only include 16+ subjects in best_windows_adult and kept_windows_confounds
+best_windows_adult_full <- best_windows_pre_full %>%
+  semi_join(passed_participants_16_plus_full, by = "subject")
+
+kept_windows_confounds_adult_full <- kept_windows_confounds_pre_full %>%
+  semi_join(passed_participants_16_plus_full, by = "subject")
+
+
+
 ###--- Save stage 2 outputs ---###
 saveRDS(best_windows,            file.path(output_dir_s2, "best_windows_kids.rds"))
 saveRDS(kept_windows_confounds,  file.path(output_dir_s2, "kept_windows_confounds_kids.rds"))
 saveRDS(best_windows_adult,           file.path(output_dir_s2, "best_windows_adults.rds"))
 saveRDS(kept_windows_confounds_adult, file.path(output_dir_s2, "kept_windows_confounds_adults.rds"))
+saveRDS(best_windows_dev_full,             file.path(output_dir_s2, "best_windows_kids_full.rds"))
+saveRDS(kept_windows_confounds_dev_full,   file.path(output_dir_s2, "kept_windows_confounds_kids_full.rds"))
+saveRDS(best_windows_adult_full,           file.path(output_dir_s2, "best_windows_adults_full.rds"))
+saveRDS(kept_windows_confounds_adult_full, file.path(output_dir_s2, "kept_windows_confounds_adults_full.rds"))

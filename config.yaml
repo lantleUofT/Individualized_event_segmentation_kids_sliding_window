@@ -34,12 +34,14 @@ harmonization:
  
 # --- Stage 2: sliding window motion selection ---#
 sliding_window:
-  fd_threshold:       0.3
+  fd_threshold:       0.25
   dvars_threshold:    1.5
-  win_length:         355
+  win_length:         225
   max_window_number:  1
   adult_age_min:      16
   age_col:            "Age"
+  win_length_full:    355
+  max_w_num_full:     1
  
 # --- Stage 3: preprocessing for final analysis ---#
 preprocessing:
