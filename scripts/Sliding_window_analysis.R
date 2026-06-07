@@ -1,6 +1,8 @@
 #--- Import packages + yaml pathing ---#
 libs = c("readr", "purrr", "tibble", "tidyr", "dplyr", "here", "yaml", "smoother", "data.table")
-lapply(libs, require, character.only = TRUE)
+suppressPackageStartupMessages(
+  invisible(lapply(libs, require, character.only = TRUE))
+)
 
 cfg <- yaml::read_yaml(here::here("config.yaml"))
 
@@ -101,6 +103,28 @@ pick_best_windows <- function(df_run, keys, win_len, max_win) {
     select(win_num, start_TR, end_TR, mean_fd)
 }
 
+###--- Define window selection function ---###
+select_one_window_per_subject <- function(windows_df, confounds_df) {
+  ref_mean <- mean(windows_df$mean_fd)
+  
+  selected <- windows_df %>%
+    group_by(subject) %>%
+    slice_min(abs(mean_fd - ref_mean), n = 1, with_ties = FALSE) %>%
+    ungroup()
+  
+  keep_trs <- selected %>%
+    rowwise() %>%
+    summarise(subject = subject,
+              TR = list(seq.int(start_TR, end_TR)),
+              .groups = "drop") %>%
+    unnest(TR)
+  
+  trimmed_confounds <- confounds_df %>%
+    semi_join(keep_trs, by = c("subject", "TR"))
+  
+  list(windows = selected, confounds = trimmed_confounds)
+}
+
 
 
 ###--- Apply Sliding Window Analysis ---###
@@ -143,6 +167,10 @@ kept_windows_confounds <- confounds_pheno %>%
   semi_join(good_trs, by = c("subject", "TR")) %>%
   arrange(subject, TR)   
 
+#extract windows pre age exclusion
+best_windows_pre           <- best_windows
+kept_windows_confounds_pre <- kept_windows_confounds
+
 
 
 ###--- Sliding window summary ---###
@@ -165,35 +193,38 @@ passed_participants_16_plus <- confounds_pheno %>%
 readr::write_csv(passed_participants_16_plus, file.path(output_dir_s2, "subjects_pass_355_age16plus.csv"))
 
 #remove excluded subjects from best_windows and kept_windows_confounds
-best_windows <- best_windows %>%
+best_windows_dev <- best_windows %>%
   anti_join(passed_participants_16_plus, by = "subject")
 
-kept_windows_confounds <- kept_windows_confounds %>%
+kept_windows_confounds_dev <- kept_windows_confounds %>%
   anti_join(passed_participants_16_plus, by = "subject")
 
-#calculate mean framewise displacement for all windows
-mean_window_FWD = mean(best_windows$mean_fd)
 
 #retain 1 window per subject with closest fwd to mean fwd
-selected_windows <- best_windows %>%
-  group_by(subject) %>%
-  slice_min(abs(mean_fd - mean_window_FWD), n = 1, with_ties = FALSE) %>%
-  ungroup()
+dev_sel <- select_one_window_per_subject(best_windows_dev, kept_windows_confounds_dev)
+best_windows           <- dev_sel$windows
+kept_windows_confounds <- dev_sel$confounds
 
-keep_trs <- selected_windows %>%
-  rowwise() %>%
-  summarise(subject = subject,
-            TR = list(seq.int(start_TR, end_TR)),
-            .groups = "drop") %>%
-  unnest(TR)
 
-kept_windows_confounds <- kept_windows_confounds %>%
-  semi_join(keep_trs, by = c("subject", "TR"))
 
-best_windows <- selected_windows
+###--- Select best windows for adult sample ---###
+best_windows_adult <- best_windows_pre %>%
+  semi_join(passed_participants_16_plus, by = "subject")
 
+kept_windows_confounds_adult <- kept_windows_confounds_pre %>%
+  semi_join(passed_participants_16_plus, by = "subject")
+
+if (nrow(best_windows_adult) > 0) {
+  adult_sel <- select_one_window_per_subject(best_windows_adult, kept_windows_confounds_adult)
+  best_windows_adult           <- adult_sel$windows
+  kept_windows_confounds_adult <- adult_sel$confounds
+} else {
+  cat("Note: no 16+ subjects passed window selection; adult outputs will be empty.\n")
+}
 
 
 ###--- Save stage 2 outputs ---###
-saveRDS(best_windows,            file.path(output_dir_s2, "best_windows.rds"))
-saveRDS(kept_windows_confounds,  file.path(output_dir_s2, "kept_windows_confounds.rds"))
+saveRDS(best_windows,            file.path(output_dir_s2, "best_windows_kids.rds"))
+saveRDS(kept_windows_confounds,  file.path(output_dir_s2, "kept_windows_confounds_kids.rds"))
+saveRDS(best_windows_adult,           file.path(output_dir_s2, "best_windows_adults.rds"))
+saveRDS(kept_windows_confounds_adult, file.path(output_dir_s2, "kept_windows_confounds_adults.rds"))

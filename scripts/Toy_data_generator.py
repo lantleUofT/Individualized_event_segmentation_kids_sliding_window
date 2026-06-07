@@ -67,13 +67,13 @@ mp = motion_params.set_index("measure")
 
 for eid in pheno_df["EID"]:
     motion_conf = pd.DataFrame({
-        "V1": np.zeros(750),
-        "V2": np.zeros(750),
-        "V3": np.zeros(750),
+        "V1": np.zeros(355),
+        "V2": np.zeros(355),
+        "V3": np.zeros(355),
         "V4": np.random.normal(mp.loc["std_dvars", "mean"],
-                               mp.loc["std_dvars", "sd"], 750),
+                               mp.loc["std_dvars", "sd"], 355),
         "V5": np.random.normal(mp.loc["framewise_displacement", "mean"],
-                               mp.loc["framewise_displacement", "sd"], 750),
+                               mp.loc["framewise_displacement", "sd"], 355),
     })
     (TOY / "Confounds_data").mkdir(parents=True, exist_ok=True)
     motion_conf.to_csv(TOY / "Confounds_data" / f"sub-{eid}_confounds.1D", sep=" ", header=False, index=False)

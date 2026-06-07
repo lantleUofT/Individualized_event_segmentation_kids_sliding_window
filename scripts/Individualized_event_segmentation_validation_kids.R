@@ -1,6 +1,8 @@
 #--- Import packages + yaml pathing ---#
 libs = c("readr", "purrr", "tibble", "tidyr", "dplyr", "here", "yaml", "smoother", "data.table")
-lapply(libs, require, character.only = TRUE)
+suppressPackageStartupMessages(
+  invisible(lapply(libs, require, character.only = TRUE))
+)
 
 cfg <- yaml::read_yaml(here::here("config.yaml"))
 

@@ -1,6 +1,8 @@
 #--- Import packages + yaml pathing ---#
 libs = c("readr", "purrr", "tibble", "tidyr", "dplyr", "here", "yaml", "smoother", "data.table")
-lapply(libs, require, character.only = TRUE)
+suppressPackageStartupMessages(
+  invisible(lapply(libs, require, character.only = TRUE))
+)
 
 cfg <- yaml::read_yaml(here::here("config.yaml"))
 
@@ -38,7 +40,8 @@ smooth_window    <- cfg$preprocessing$smooth_window
 behavioral_bounds_resamp_smoothed <- readRDS(file.path(output_dir_s1, "behavioral_bounds_resamp_smoothed.rds"))
 
 #stage 2 output: confound data trimmed to selected motion windows
-kept_windows_confounds <- readRDS(file.path(output_dir_s2, "kept_windows_confounds.rds"))
+kept_windows_confounds <- readRDS(file.path(output_dir_s2, "kept_windows_confounds_kids.rds"))
+kept_windows_confounds_adult <- readRDS(file.path(output_dir_s2, "kept_windows_confounds_adults.rds"))
 
 #neural boundary data (subject x roi x TR)
 neural_df <- fread(
@@ -56,6 +59,7 @@ neural_df <- fread(
 
 
 ###--- Data Preprocessing (integration + smoothing) ---###
+#--- kids ---#
 #Adjust the neural TR numbers to align with the confound window TR numbers
 neural_df[, TR := TR + as.integer(neural_tr_offset)]
 
@@ -67,9 +71,9 @@ setDT(neural_confound_extracted_windows_df)
 setorder(neural_confound_extracted_windows_df, subject, roi, TR)
 
 neural_confound_extracted_windows_df[, `:=`(
-  boundary_gaus  = replace_na(smth(boundary,  window = smooth_window, method = "gaussian"), 0),
-  strength_gaus  = replace_na(smth(strength,  window = smooth_window, method = "gaussian"), 0),
-  fwd_gaus   = replace_na(smth(framewise_displacement, window = smooth_window, method = "gaussian"), 0) 
+  boundary_gaus  = replace_na(smth(boundary,  window = smooth_window, method = "gaussian")),
+  strength_gaus  = replace_na(smth(strength,  window = smooth_window, method = "gaussian")),
+  fwd_gaus   = replace_na(smth(framewise_displacement, window = smooth_window, method = "gaussian")) 
 ), by = .(subject, roi)]
 
 #Join the group-level behavioral boundary density by TR
@@ -82,9 +86,38 @@ cat("Fraction of neural rows with no behavioral match:", round(na_frac, 4), "\n"
 stopifnot(na_frac == 0)
 
 
+#--- adults ---#
+#Inner join the neural and confound window dataframes on subject and TR
+neural_confound_extracted_windows_adult_df <- neural_df %>% inner_join(kept_windows_confounds_adult, by = c("subject","TR"))
+
+#Smooth the extracted windows neural data
+setDT(neural_confound_extracted_windows_adult_df)
+setorder(neural_confound_extracted_windows_adult_df, subject, roi, TR)
+
+neural_confound_extracted_windows_adult_df[, `:=`(
+  boundary_gaus  = replace_na(smth(boundary,  window = smooth_window, method = "gaussian")),
+  strength_gaus  = replace_na(smth(strength,  window = smooth_window, method = "gaussian")),
+  fwd_gaus   = replace_na(smth(framewise_displacement, window = smooth_window, method = "gaussian")) 
+), by = .(subject, roi)]
+
+#Join the group-level behavioral boundary density by TR
+neural_confound_extracted_windows_adult_df <- neural_confound_extracted_windows_adult_df %>%
+  left_join(behavioral_bounds_resamp_smoothed %>% select(TR, norm_resamp_gaus), by = "TR")
+
+#verify the behavioral join aligned (should be exactly 0)
+na_frac_adult <- mean(is.na(neural_confound_extracted_windows_adult_df$norm_resamp_gaus))
+cat("Fraction of neural rows with no behavioral match (adults):", round(na_frac_adult, 4), "\n")
+
+
 
 ###--- Save stage 3 output ---###
 saveRDS(neural_confound_extracted_windows_df,
         file.path(output_dir_s3, "neural_confound_extracted_windows_df.rds"))
+readr::write_csv(neural_confound_extracted_windows_df,
+                 file.path(output_dir_s3, "neural_confound_extracted_windows_df.csv"))
+saveRDS(neural_confound_extracted_windows_adult_df,
+        file.path(output_dir_s3, "neural_confound_extracted_windows_adult_df.rds"))
+readr::write_csv(neural_confound_extracted_windows_adult_df,
+                 file.path(output_dir_s3, "neural_confound_extracted_windows_adult_df.csv"))
 
 

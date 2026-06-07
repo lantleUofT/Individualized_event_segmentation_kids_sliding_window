@@ -21,3 +21,8 @@ renv/staging/
 .Rhistory
 .RData
 .Rproj.user/
+
+# Container build artifacts (regenerable from Dockerfile)
+*.tar
+*.sif
+

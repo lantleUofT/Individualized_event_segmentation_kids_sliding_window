@@ -1,0 +1,24 @@
+name: pipeline
+
+# Run on every push and PR, plus a manual "Run workflow" button.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+    steps:
+      # Check out the repo into the runner
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Build the Docker image exactly as a user would
+      - name: Build image
+        run: docker build -t eventseg-pipeline .
+
+      # Run the full pipeline (toy-data generation + the four stages).
+      # If any stage exits non-zero, run_pipeline.sh's `set -e` fails the job.
+      - name: Run pipeline
+        run: docker run --rm eventseg-pipeline
