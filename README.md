@@ -8,35 +8,36 @@ that should be implemented downstream of the denoising pipeline outlined in
 
 It extracts reliable windows of individualized neural state boundary timeseries 
 unbiased by motion in children (which Wilford et al's (2025) pipeline was unable
-to do). 
+to do). The reliable windows will be outputted into /data/final_harmonization_output
 
 The validation analyses include: ensuring number and location of boundaries are 
-not correlated with motion, and that neural state boundaries significantly 
+not correlated with motion, as well as that neural state boundaries significantly 
 correlate with behavioral event boundaries, a hallmark of typical neural event 
 segmentation studies.
 
 
 ## Running it
 
-The pipeline runs inside a container. Two options.
+The pipeline runs inside a container with two options, Docker and 
+Apptainer/Singularity.
 
 
 ### Docker
+
+**Toy data:**
 
 ```bash
 docker build -t eventseg-pipeline .
 docker run --rm eventseg-pipeline
 ```
 
-`docker run` executes all five steps (toy-data generation + the four stages),
-prints a summary for each and writes results to `data/` on your host. To recover 
-the output files onto your host, mount a volume over the output directory:
+`docker run` executes all five steps (toy-data generation + harmonization, a sliding window
+analysis, preprocessing and then the validation). It prints a summary for each. 
+To recover the output files onto your host, mount a volume over the output directory:
 
 ```bash
 docker run --rm -v "$(pwd)/data:/pipeline/data" eventseg-pipeline
 ```
-
-
 
 Please note that running without the volume mount (`docker run --rm eventseg-pipeline`) 
 still runs the full pipeline and prints a summary for each stage, but the output 
@@ -44,36 +45,52 @@ files stay inside the container and are discarded: useful for verifying it
 works, not for keeping results.
 
 
+**Real data:**
+
+When running it with your real data, create a config_local.yaml that is identical
+to the config.yaml except for the input data filepaths. 
+
+You must build your docker container with your real data in it or mount the directories
+onto the docker container for a run with real data to resolve successfully.
+
+To run with real data use:
+
+```bash
+docker build -t eventseg-pipeline .
+docker run --rm eventseg-pipeline --real
+```
+
+`docker run --real` executes four steps (harmonization, a sliding window
+analysis, preprocessing and then the validation). It prints a summary for each 
+step. To recover the output files onto your host, mount a volume over the 
+output directory:
+
+```bash
+docker run --rm -v "$(pwd)/data:/pipeline/data" eventseg-pipeline --real
+```
+
+Please note that running without the volume mount (e.g. 
+`docker run --rm eventseg-pipeline --real`) still runs the full pipeline and 
+prints a summary for each stage, but the output files stay inside the container 
+and are discarded: useful for verifying it works, not for keeping results.
+
 ### Apptainer (HPC / Singularity environments)
 
 A prebuilt `.sif` is attached to the latest [Release](../../releases). Download it
-alongside `run_pipeline_on_cluster.sh`, place both in the same directory, and run:
+alongside the repository `run_pipeline_on_cluster.sh`, place both in the same 
+directory (`run_pipeline_on_cluster.sh` ships in repo/scripts), and run:
 
 ```bash
 bash run_pipeline_on_cluster.sh
 ```
 
-This runs the full pipeline and writes results to a `data/` directory next to the
-script. To write outputs elsewhere, pass a path:
-
-```bash
-bash run_pipeline_on_cluster.sh /scratch/your_user/results
-```
 
 **Real data:**
 
-Place your inputs in a `real_data/` directory next to the script, with
-subfolders `Neural_data/`, `Confounds_data/`, `Behavioral_data/`,
-`Phenotype_data/`. Create a `config_local.yaml` (also next to the script) whose
-`paths:` point at the container mount under `/data/` — not your host paths:
+Place your inputs in a `real_data/` directory next to the script and a `config_local.yaml` 
+(also next to the script) whose `paths:` point at the container mount under `/data/` 
+— not your host paths:
 
-```yaml
-paths:
-  neural_file:    /data/Neural_data/MASTER_allSubjects_allrois_boundaries_stacked.tsv
-  confound_dir:   /data/Confounds_data
-  behavioral_dir: /data/Behavioral_data
-  phenotype_file: /data/Phenotype_data/HBN_complete_Pheno.csv
-```
 
 Then run:
 
@@ -82,7 +99,12 @@ bash run_pipeline_on_cluster.sh --real
 ```
 
 This skips toy-data generation, binds your `real_data/` and `config_local.yaml`
-into the container, and writes results to `data/`.
+into the container, and writes results to `data/`. To write outputs elsewhere, 
+pass a path:
+
+```bash
+bash run_pipeline_on_cluster.sh --real /scratch/your_user/results
+```
 
 
 **Build your own .sif:**
@@ -96,12 +118,6 @@ apptainer build eventseg.sif docker-archive://eventseg-pipeline.tar
 ---
 
 
-## Running on your own data
-
-The pipeline ships pointed at the toy dataset. To run on real data: For apptainer 
-create a config_local .yaml pointing at /data/.. put files in real_data/ and use 
-the flag --real
-
 
 ### 1. Neural state-boundary timeseries (GSBS output)
 
@@ -113,18 +129,20 @@ per row.
 
 ### 2. Behavioural boundary annotations
 
-One CSV **per rater** in the behavioural directory (`behavioral_dir`). Each
-file lists the TRs at which that rater marked an event boundary (one row per
-boundary, not a full timeseries).
+One CSV **per rater** in the behavioural directory (`behavioral_dir` in config). 
+Each file lists the TRs at which that rater marked an event boundary 
+(one row per boundary, not a full timeseries).
 
 
 ### 3. Head-motion confounds
 
 One whitespace-delimited `.1D` file per subject in the confounds directory
-(`confound_dir`), named `sub-<ID>_confounds.1D`. **No header.** The loader reads
-columns by position. Please note that these confounds.1D file should be the ones
-outputted by Wilford et al's (2025) denoising pipeline not raw fMRIprep .1D confound
-files. 
+(`confound_dir` in config), named `sub-<ID>_confounds.1D`. **No header.** 
+The loader reads columns by position. Please note that these confounds.1D file 
+should be the ones outputted by Wilford et al's (2025) denoising pipeline not 
+raw fMRIprep .1D confound files. 
+
+You may find Wilford et al's (2025) pipeline at: (repo in progress)
 
 You can find my version of this pipeline optimized for use in HPC environment with
 slurm at: (repo in progress)
@@ -132,8 +150,8 @@ slurm at: (repo in progress)
 
 ### 4. Phenotype file
 
-A single CSV (`phenotype_file`) with one row per subject, containing EID (subject ID 
-with or without sub-) and an Age value.
+A single CSV (`phenotype_file` in config) with one row per subject, containing 
+EID (subject ID with or without sub-) and an Age value.
 
 ---
 
@@ -160,7 +178,7 @@ output, so they must run in order.
 3. **Preprocessing** (`Data_preprocessing_for_final_analysis.R`)
    Joins the neural boundary/strength timeseries to the selected motion windows and
    the group behavioural timeseries, smooths the neural signals, and produces the
-   single analysis-ready dataframe.
+   single analysis-ready dataframe for children and adults.
 
 4. **Validation** (`Individualized_event_segmentation_validation_kids.R`)
    The core test. Within each participant and brain region it computes:
@@ -256,8 +274,8 @@ Demonstrating a clean end-to-end run is the point.
 Expected results are:
 - Non-significant for motion correlations (or a 0 variance warning if no TR's with
   high enough motion are generated for the motion x boundary number analysis).
-- Significant at the group level for behavioral correlation (but not necessarily
-  in every ROI)
+- Significant at the group level for behavioral correlation (but not for any
+  ROI's)
 
 
 ---
