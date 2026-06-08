@@ -322,6 +322,40 @@ Expected results are:
 `_dependencies.R` declares the R packages for `renv`'s scanner and is not run by the
 pipeline itself.
 
+## Data License & Attribution
+
+### Derived data in this repository
+
+The probability matrices for toy data generation in this repository are aggregate data derived from the
+Healthy Brain Network (HBN) neuroimaging (fMRI) dataset. They were produced
+through extensive preprocessing, algorithmic transformation, and averaging across
+subjects into probability matrices. No raw HBN data are redistributed here.
+
+Because the source data combine participants released under both the
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0) and
+Creative Commons Attribution 4.0 (CC BY 4.0) licenses, the derived matrices in
+this repository are released under the more restrictive of the two:
+
+**Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+(CC BY-NC-SA 4.0)** — https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+This means you may share and adapt these matrices provided that you:
+- **Attribute** this repository and the original HBN source (see Citations section);
+- Do **not** use them for commercial purposes;
+- Distribute any derivative works under the same CC BY-NC-SA 4.0 license.
+
+### Randomly generated age data
+
+Any age values included in this repository are generated completely at random and
+are **not** derived from, conditioned on, or computed from the HBN data or the
+probability matrices. They are fully synthetic and carry no license restriction from HBN.
+
+### Source attribution
+
+Source neuroimaging data: Healthy Brain Network (HBN), Child Mind Institute,
+distributed via the 1000 Functional Connectomes Project / INDI on NITRC.
+https://fcon_1000.projects.nitrc.org/indi/cmi_healthy_brain_network/
+
 
 ## Citations
 Robyn Erica Wilford, Huiqin Chen, Erika Wharton-Shukster, 
@@ -329,3 +363,7 @@ Amy S. Finn, Katherine Duncan;
 Personalized Neural State Segmentation: Validating the Greedy State Boundary Search 
 Algorithm for Individual-level Functional Magnetic Resonance Imaging Data. 
 J Cogn Neurosci 2025; 37 (11): 1889–1912. doi: https://doi.org/10.1162/jocn_a_02345
+
+Alexander, L., Escalera, J., Ai, L. et al. An open resource for transdiagnostic research 
+in pediatric mental health and learning disorders. Sci Data 4, 170181 (2017). 
+https://doi.org/10.1038/sdata.2017.181
