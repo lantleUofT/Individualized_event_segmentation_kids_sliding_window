@@ -4,13 +4,10 @@ suppressPackageStartupMessages(
   invisible(lapply(libs, require, character.only = TRUE))
 )
 
-cfg <- yaml::read_yaml(here::here("config.yaml"))
+args <- commandArgs(trailingOnly = TRUE)
+config_file <- if (length(args) >= 1) args[1] else "config.yaml"
 
-local_path <- here::here("config_local.yaml")
-if (file.exists(local_path)) {
-  local <- yaml::read_yaml(local_path)
-  cfg <- modifyList(cfg, local)
-}
+cfg <- yaml::read_yaml(here::here(config_file))
 
 cfg$paths <- lapply(cfg$paths, here::here)
 
@@ -23,6 +20,7 @@ dir.create(output_dir_s4, showWarnings = FALSE, recursive = TRUE)
 
 #--- Final analysis neural data file ---#
 neural_confound_extracted_windows_df <- readRDS(file.path(output_dir_s3, "neural_confound_extracted_windows_df.rds"))
+neural_confound_extracted_windows_adult_df <- readRDS(file.path(output_dir_s3, "neural_confound_extracted_windows_adult_df.rds"))
 
 #--- Set all parameters ---#
 high_motion_TR_threshold <- cfg$validation$high_motion_tr_threshold
@@ -104,8 +102,14 @@ cat(sprintf("High-motion TRs x mean boundaries: r = %.5f, t(%.0f) = %.5f, p = %.
 
 
 ###--- Pearson correlation behavioral vs neural boundary timeseries (grouped ROIs) ---###
+#pooled sample (kids + adults) for behavioral-neural analyses
+neural_confound_extracted_windows_pooled_df <- dplyr::bind_rows(
+  neural_confound_extracted_windows_df,
+  neural_confound_extracted_windows_adult_df
+)
+
 #correlate behavioral boundary density against boundary strength within each subject x ROI
-cor_stats_indiv_beh <- neural_confound_extracted_windows_df %>%
+cor_stats_indiv_beh <- neural_confound_extracted_windows_pooled_df %>%
   group_by(subject, roi) %>%
   group_modify(~ {
     ct <- cor.test(.x$norm_resamp_gaus, .x$strength_gaus, method = "pearson")
@@ -145,7 +149,7 @@ cat(sprintf("Per-subject raw r: mean = %.4f, median = %.4f, range [%.4f, %.4f]\n
 
 ###--- Pearson correlation behavioral vs neural boundary timeseries (Individual ROIs) ---###
 #correlate behavioral density against boundary strength per subject x ROI
-cor_subject_roi_beh <- neural_confound_extracted_windows_df %>%
+cor_subject_roi_beh <- neural_confound_extracted_windows_pooled_df %>%
   group_by(subject, roi) %>%
   group_modify(~ {
     x <- .x$norm_resamp_gaus

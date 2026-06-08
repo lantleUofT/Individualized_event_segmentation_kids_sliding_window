@@ -8,7 +8,7 @@ that should be implemented downstream of the denoising pipeline outlined in
 
 It extracts reliable windows of individualized neural state boundary timeseries 
 unbiased by motion in children (which Wilford et al's (2025) pipeline was unable
-to do). The reliable windows will be outputted into /data/final_harmonization_output
+to do). The selected windows will be output into /data/final_harmonization_output
 
 The validation analyses include: ensuring number and location of boundaries are 
 not correlated with motion, as well as that neural state boundaries significantly 
@@ -173,10 +173,10 @@ The loader reads columns by position. Please note that these confounds.1D file
 should be the ones outputted by Wilford et al's (2025) denoising pipeline not 
 raw fMRIprep .1D confound files. 
 
-You may find Wilford et al's (2025) pipeline at: (repo in progress)
+You may find Wilford et al's (2025) pipeline at: (Repo in progress)
 
 You can find my version of this pipeline optimized for use in HPC environment with
-slurm at: (repo in progress)
+slurm at: (Repo in progress)
 
 
 ### 4. Phenotype file
@@ -199,17 +199,23 @@ output, so they must run in order.
    rate then cropped by 40 TRs, smoothed, and collapsed into a group-average 
    boundary-density timeseries.
 
-2. **Sliding-window motion selection** (`Sliding_window_analysis.R`)
-   For each participant, scans for the lowest-motion usable window of scan time
-   (using framewise-displacement and DVARS thresholds) and keeps the window with the 
-   lowest mean framewise-displacement per participant. Excludes adult participants 
-   from this analysis; they are retained separately as a comparison group for 
-   the developmental sample once the method is validated.
+2. 2. **Sliding-window motion selection** (`Sliding_window_analysis.R`)
+   For each participant, scans for low-motion usable windows of scan time (using
+   framewise-displacement and DVARS thresholds). Two passes run: a first window
+   (`win_length`) and a second "full" window (`win_length_full`). In the first-window
+   pass, each subject is reduced to a single window — the one whose mean FD is closest
+   to the group mean; the full pass retains all selected windows. Participants whose
+   timeseries never exceed the thresholds are kept as well. Adult participants
+   (age ≥ `adult_age_min`) are separated from children in the outputs and retained as a
+   comparison group for the developmental sample once the method is validated.
 
 3. **Preprocessing** (`Data_preprocessing_for_final_analysis.R`)
-   Joins the neural boundary/strength timeseries to the selected motion windows and
-   the group behavioural timeseries, smooths the neural signals, and produces the
-   single analysis-ready dataframe for children and adults.
+   Aligns the neural boundary/strength timeseries to the confound windows (applying a
+   TR offset), inner-joins them to the kept motion windows, Gaussian-smooths the neural
+   signals (boundary, strength, framewise displacement), and joins the group behavioural
+   boundary density by TR (not for full timeseries). Produces four analysis-ready dataframes — children and adults,
+   each in first-window and full-timeseries versions — plus an adult full-timeseries
+   group average (mean smoothed boundary and strength per ROI × TR).
 
 4. **Validation** (`Individualized_event_segmentation_validation_kids.R`)
    The core test. Within each participant and brain region it computes:
@@ -265,12 +271,16 @@ also work.
 ### `sliding_window` (Stage 2)
 | Key | Default | Description |
 |-----|---------|-------------|
-| `fd_threshold` | `0.3` | Framewise-displacement cutoff; TRs above this count as high-motion |
+| `fd_threshold` | `0.25` | Framewise-displacement cutoff; TRs above this count as not compatible with a window |
 | `dvars_threshold` | `1.5` | Standardized DVARS cutoff for usable TRs |
-| `win_length` | `355` | Length of the candidate motion window in TRs |
+| `win_length` | `225` | Length of the candidate motion window in TRs |
 | `max_window_number` | `1` | Number of windows kept per subject (lowest-motion) |
 | `adult_age_min` | `16` | Subjects at or above this age are excluded as adults |
 | `age_col` | `"Age"` | Name of the age column in the phenotype file |
+| `win_length_full` | `355` | full length of fMRI timeseries for second sliding window |
+| `max_w_num_full` | `1` | Number of windows kept per subject in second sliding window |
+
+
 
 ### `preprocessing` (Stage 3)
 | Key | Default | Description |
@@ -286,17 +296,35 @@ also work.
 | `fdr_alpha` | `0.05` | Significance threshold applied to FDR-corrected p-values |
 
 
-## Outputs
-
+## Pipeline Outputs
 Results are written to `data/` (visible on your host only when you mount the
 volume, as shown above):
 
-- `harmonization_output/` — aligned confound + behavioural timeseries
-- `sliding_window_output/` — selected low-motion windows per participant
-- `final_harmonization_output/` — the analysis-ready dataframe
-- `validation_analysis_output/` — behavioral validation outputs:
-    `roi_results_all.csv` (every region) and
-    `roi_results_sig.csv` (regions surviving FDR correction)
+- `harmonization_output/` (stage 1) — aligned confound, phenotype, and behavioural timeseries
+    `confounds_pheno.rds` (per subject × TR confound data — framewise displacement and std DVARS — left-joined with phenotype columns; subjects with no phenotype match dropped)
+    `behavioral_bounds_resamp_smoothed.rds` (group-average behavioural boundary timeseries: one row per TR, HRF-shifted, downsampled, cropped, and Gaussian-smoothed; key column `norm_resamp_gaus`)
+
+- `sliding_window_output/` (stage 2) — selected low-motion windows per participant. Two object types per group:
+  `best_windows_*` is the window-level index (one row per selected window: win_num, start_TR, end_TR, mean_fd).
+  `kept_windows_confounds_*` is the TR-level confound + phenotype data for those windows (one row per retained TR).
+  Groups follow a kids/adults × first-window/second-window ("full") split:
+    `best_windows_kids` / `kept_windows_confounds_kids` (kids, first window; reduced to one window per subject — FD closest to group mean)
+    `best_windows_adults` / `kept_windows_confounds_adults` (adults age ≥ adult_age_min, first window; one window per subject)
+    `best_windows_kids_full` / `kept_windows_confounds_kids_full` (kids, second window; ALL selected windows retained, not reduced)
+    `best_windows_adults_full` / `kept_windows_confounds_adults_full` (adults, second window; all selected windows retained)
+  Also writes two diagnostic CSVs: `subjects_pass_window_age16plus.csv` and `subjects_pass_window_full_age16plus.csv` (subjects age ≥ adult_age_min who passed each window pass).
+
+- `final_harmonization_output/` (stage 3) — analysis-ready neural × confound × behavioural dataframes (saved as both .rds and .csv). Neural TRs are offset to align with confound windows, inner-joined to the kept windows, Gaussian-smoothed (boundary, strength, framewise displacement), and joined to the group behavioural density by TR:
+    `neural_confound_extracted_windows_df` (kids, first window)
+    `neural_confound_extracted_windows_adult_df` (adults, first window)
+    `neural_confound_extracted_windows_full_df` (kids, second/full window)
+    `neural_confound_extracted_windows_adult_full_df` (adults, second/full window)
+    `adult_full_group_avg` (adult full-window data averaged across subjects: one row per ROI × TR, with mean smoothed boundary, mean smoothed strength, and subject count)
+
+- `validation_analysis_output/` (stage 4) — behavioural validation outputs (kids analysis; behavioural-neural correlations pool kids + adults):
+    `roi_results_all.rds` / `roi_results_all.csv` (per-ROI one-sample t-test of Fisher-z behavioural-neural correlations vs 0: n_subj, mean_r, mean_r_z, t_stat, df, p_val, p_fdr, ci_low, ci_high — every ROI)
+    `roi_results_sig.csv` (subset of the above surviving BH-FDR correction at p_fdr < fdr_alpha)
+  Note: the motion×boundary and high-motion×boundary-count analyses are printed to console only — no file output.
 
 Because the toy data is randomized based on real participants whose data passed
 the sliding window analysis + validation, the *toy values* are not meaningful.
@@ -322,6 +350,40 @@ Expected results are:
 `_dependencies.R` declares the R packages for `renv`'s scanner and is not run by the
 pipeline itself.
 
+## Data License & Attribution
+
+### Derived data in this repository
+
+The matrices for toy data generation in this repository are aggregate data derived from the
+Healthy Brain Network (HBN) neuroimaging (fMRI) dataset. They were produced
+through extensive preprocessing, algorithmic transformation, and averaging across
+subjects into probability matrices. No raw HBN data are redistributed here.
+
+Because the source data combine participants released under both the
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0) and
+Creative Commons Attribution 4.0 (CC BY 4.0) licenses, the derived matrices in
+this repository are released under the more restrictive of the two:
+
+**Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+(CC BY-NC-SA 4.0)** — https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+This means you may share and adapt these matrices provided that you:
+- **Attribute** this repository and the original HBN source (see Citations section);
+- Do **not** use them for commercial purposes;
+- Distribute any derivative works under the same CC BY-NC-SA 4.0 license.
+
+### Randomly generated age data
+
+Any age values included in this repository are generated completely at random and
+are **not** derived from, conditioned on, or computed from the HBN data or the
+probability matrices. They are fully synthetic and carry no license restriction from HBN.
+
+### Source attribution
+
+Source neuroimaging data: Healthy Brain Network (HBN), Child Mind Institute,
+distributed via the 1000 Functional Connectomes Project / INDI on NITRC.
+https://fcon_1000.projects.nitrc.org/indi/cmi_healthy_brain_network/
+
 
 ## Citations
 Robyn Erica Wilford, Huiqin Chen, Erika Wharton-Shukster, 
@@ -329,3 +391,7 @@ Amy S. Finn, Katherine Duncan;
 Personalized Neural State Segmentation: Validating the Greedy State Boundary Search 
 Algorithm for Individual-level Functional Magnetic Resonance Imaging Data. 
 J Cogn Neurosci 2025; 37 (11): 1889–1912. doi: https://doi.org/10.1162/jocn_a_02345
+
+Alexander, L., Escalera, J., Ai, L. et al. An open resource for transdiagnostic research 
+in pediatric mental health and learning disorders. Sci Data 4, 170181 (2017). 
+https://doi.org/10.1038/sdata.2017.181

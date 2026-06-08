@@ -4,13 +4,10 @@ suppressPackageStartupMessages(
   invisible(lapply(libs, require, character.only = TRUE))
 )
 
-cfg <- yaml::read_yaml(here::here("config.yaml"))
+args <- commandArgs(trailingOnly = TRUE)
+config_file <- if (length(args) >= 1) args[1] else "config.yaml"
 
-local_path <- here::here("config_local.yaml")
-if (file.exists(local_path)) {
-  local <- yaml::read_yaml(local_path)
-  cfg <- modifyList(cfg, local)
-}
+cfg <- yaml::read_yaml(here::here(config_file))
 
 cfg$paths <- lapply(cfg$paths, here::here)
 
@@ -42,6 +39,8 @@ behavioral_bounds_resamp_smoothed <- readRDS(file.path(output_dir_s1, "behaviora
 #stage 2 output: confound data trimmed to selected motion windows
 kept_windows_confounds <- readRDS(file.path(output_dir_s2, "kept_windows_confounds_kids.rds"))
 kept_windows_confounds_adult <- readRDS(file.path(output_dir_s2, "kept_windows_confounds_adults.rds"))
+kept_windows_confounds_full       <- readRDS(file.path(output_dir_s2, "kept_windows_confounds_kids_full.rds"))
+kept_windows_confounds_adult_full <- readRDS(file.path(output_dir_s2, "kept_windows_confounds_adults_full.rds"))
 
 #neural boundary data (subject x roi x TR)
 neural_df <- fread(
@@ -109,6 +108,53 @@ na_frac_adult <- mean(is.na(neural_confound_extracted_windows_adult_df$norm_resa
 cat("Fraction of neural rows with no behavioral match (adults):", round(na_frac_adult, 4), "\n")
 
 
+#--- kids (full timeseries) ---#
+#Inner join the neural and confound window dataframes on subject and TR
+neural_confound_extracted_windows_full_df <- neural_df %>%
+  inner_join(kept_windows_confounds_full, by = c("subject","TR"))
+
+#Smooth the extracted windows neural data
+setDT(neural_confound_extracted_windows_full_df)
+setorder(neural_confound_extracted_windows_full_df, subject, roi, TR)
+
+neural_confound_extracted_windows_full_df[, `:=`(
+  boundary_gaus = replace_na(smth(boundary,                window = smooth_window, method = "gaussian")),
+  strength_gaus = replace_na(smth(strength,                window = smooth_window, method = "gaussian")),
+  fwd_gaus      = replace_na(smth(framewise_displacement,  window = smooth_window, method = "gaussian"))
+), by = .(subject, roi)]
+
+
+
+#--- adults (full timeseries) ---#
+#Inner join the neural and confound window dataframes on subject and TR
+neural_confound_extracted_windows_adult_full_df <- neural_df %>%
+  inner_join(kept_windows_confounds_adult_full, by = c("subject","TR"))
+
+#Smooth the extracted windows neural data
+setDT(neural_confound_extracted_windows_adult_full_df)
+setorder(neural_confound_extracted_windows_adult_full_df, subject, roi, TR)
+
+neural_confound_extracted_windows_adult_full_df[, `:=`(
+  boundary_gaus = replace_na(smth(boundary,                window = smooth_window, method = "gaussian")),
+  strength_gaus = replace_na(smth(strength,                window = smooth_window, method = "gaussian")),
+  fwd_gaus      = replace_na(smth(framewise_displacement,  window = smooth_window, method = "gaussian"))
+), by = .(subject, roi)]
+
+
+
+#--- adult full timeseries group average (per ROI x TR) ---#
+#Average smoothed boundary and strength across adult subjects, one value per ROI x TR
+adult_full_group_avg <- neural_confound_extracted_windows_adult_full_df[
+  , .(
+    boundary_gaus_mean = mean(boundary_gaus, na.rm = TRUE),
+    strength_gaus_mean = mean(strength_gaus, na.rm = TRUE),
+    n_subj             = data.table::uniqueN(subject)
+  ),
+  by = .(roi, TR)
+]
+setorder(adult_full_group_avg, roi, TR)
+
+
 
 ###--- Save stage 3 output ---###
 saveRDS(neural_confound_extracted_windows_df,
@@ -119,5 +165,17 @@ saveRDS(neural_confound_extracted_windows_adult_df,
         file.path(output_dir_s3, "neural_confound_extracted_windows_adult_df.rds"))
 readr::write_csv(neural_confound_extracted_windows_adult_df,
                  file.path(output_dir_s3, "neural_confound_extracted_windows_adult_df.csv"))
+saveRDS(neural_confound_extracted_windows_full_df,
+        file.path(output_dir_s3, "neural_confound_extracted_windows_full_df.rds"))
+readr::write_csv(neural_confound_extracted_windows_full_df,
+                 file.path(output_dir_s3, "neural_confound_extracted_windows_full_df.csv"))
+saveRDS(neural_confound_extracted_windows_adult_full_df,
+        file.path(output_dir_s3, "neural_confound_extracted_windows_adult_full_df.rds"))
+readr::write_csv(neural_confound_extracted_windows_adult_full_df,
+                 file.path(output_dir_s3, "neural_confound_extracted_windows_adult_full_df.csv"))
+saveRDS(adult_full_group_avg,
+        file.path(output_dir_s3, "adult_full_group_avg.rds"))
+readr::write_csv(adult_full_group_avg,
+                 file.path(output_dir_s3, "adult_full_group_avg.csv"))
 
 
