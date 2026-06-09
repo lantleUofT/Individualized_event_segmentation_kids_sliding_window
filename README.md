@@ -119,8 +119,7 @@ bash run_pipeline_on_cluster.sh
 **Real data:**
 
 Place your inputs in a `real_data/` directory next to the script and a `config_local.yaml` 
-(also next to the script) whose `paths:` point at the container mount under `/data/` 
-— not your host paths:
+(also next to the script) whose `paths:` point at the container mount under `/data/`, not your host paths:
 
 
 Then run:
@@ -199,12 +198,12 @@ output, so they must run in order.
    rate then cropped by 40 TRs, smoothed, and collapsed into a group-average 
    boundary-density timeseries.
 
-2. 2. **Sliding-window motion selection** (`Sliding_window_analysis.R`)
+2. **Sliding-window motion selection** (`Sliding_window_analysis.R`)
    For each participant, scans for low-motion usable windows of scan time (using
    framewise-displacement and DVARS thresholds). Two passes run: a first window
    (`win_length`) and a second "full" window (`win_length_full`). In the first-window
-   pass, each subject is reduced to a single window — the one whose mean FD is closest
-   to the group mean; the full pass retains all selected windows. Participants whose
+   pass, each subject is reduced to a single window, the one whose mean FD is closest
+   to the group mean. The full pass retains all selected windows. Participants whose
    timeseries never exceed the thresholds are kept as well. Adult participants
    (age ≥ `adult_age_min`) are separated from children in the outputs and retained as a
    comparison group for the developmental sample once the method is validated.
@@ -213,8 +212,8 @@ output, so they must run in order.
    Aligns the neural boundary/strength timeseries to the confound windows (applying a
    TR offset), inner-joins them to the kept motion windows, Gaussian-smooths the neural
    signals (boundary, strength, framewise displacement), and joins the group behavioural
-   boundary density by TR (not for full timeseries). Produces four analysis-ready dataframes — children and adults,
-   each in first-window and full-timeseries versions — plus an adult full-timeseries
+   boundary density by TR (not for full timeseries). Produces four analysis-ready dataframes, children and adults,
+   each in first-window and full-timeseries versions as well as an adult full-timeseries
    group average (mean smoothed boundary and strength per ROI × TR).
 
 4. **Validation** (`Individualized_event_segmentation_validation_kids.R`)
@@ -301,14 +300,14 @@ Results are written to `data/` (visible on your host only when you mount the
 volume, as shown above):
 
 - `harmonization_output/` (stage 1) — aligned confound, phenotype, and behavioural timeseries
-    `confounds_pheno.rds` (per subject × TR confound data — framewise displacement and std DVARS — left-joined with phenotype columns; subjects with no phenotype match dropped)
+    `confounds_pheno.rds` (per subject × TR confound data, framewise displacement and std DVARS, left-joined with phenotype columns; subjects with no phenotype match dropped)
     `behavioral_bounds_resamp_smoothed.rds` (group-average behavioural boundary timeseries: one row per TR, HRF-shifted, downsampled, cropped, and Gaussian-smoothed; key column `norm_resamp_gaus`)
 
 - `sliding_window_output/` (stage 2) — selected low-motion windows per participant. Two object types per group:
   `best_windows_*` is the window-level index (one row per selected window: win_num, start_TR, end_TR, mean_fd).
   `kept_windows_confounds_*` is the TR-level confound + phenotype data for those windows (one row per retained TR).
   Groups follow a kids/adults × first-window/second-window ("full") split:
-    `best_windows_kids` / `kept_windows_confounds_kids` (kids, first window; reduced to one window per subject — FD closest to group mean)
+    `best_windows_kids` / `kept_windows_confounds_kids` (kids, first window; reduced to one window per subject. Selected by FD closest to group mean)
     `best_windows_adults` / `kept_windows_confounds_adults` (adults age ≥ adult_age_min, first window; one window per subject)
     `best_windows_kids_full` / `kept_windows_confounds_kids_full` (kids, second window; ALL selected windows retained, not reduced)
     `best_windows_adults_full` / `kept_windows_confounds_adults_full` (adults, second window; all selected windows retained)
@@ -335,8 +334,8 @@ Expected results are:
   high enough motion are generated for the motion x boundary number analysis).
 - Significant at the group level for behavioral correlation (but not for any
   ROI's)
-
-
+  
+  
 ---
 
 
