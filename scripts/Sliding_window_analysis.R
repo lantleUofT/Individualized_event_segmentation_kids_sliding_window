@@ -309,3 +309,13 @@ saveRDS(best_windows_dev_full,             file.path(output_dir_s2, "best_window
 saveRDS(kept_windows_confounds_dev_full,   file.path(output_dir_s2, "kept_windows_confounds_kids_full.rds"))
 saveRDS(best_windows_adult_full,           file.path(output_dir_s2, "best_windows_adults_full.rds"))
 saveRDS(kept_windows_confounds_adult_full, file.path(output_dir_s2, "kept_windows_confounds_adults_full.rds"))
+
+#CSV copies of the above (for reading into Python)
+readr::write_csv(best_windows,            file.path(output_dir_s2, "best_windows_kids.csv"))
+readr::write_csv(kept_windows_confounds,  file.path(output_dir_s2, "kept_windows_confounds_kids.csv"))
+readr::write_csv(best_windows_adult,           file.path(output_dir_s2, "best_windows_adults.csv"))
+readr::write_csv(kept_windows_confounds_adult, file.path(output_dir_s2, "kept_windows_confounds_adults.csv"))
+readr::write_csv(best_windows_dev_full,             file.path(output_dir_s2, "best_windows_kids_full.csv"))
+readr::write_csv(kept_windows_confounds_dev_full,   file.path(output_dir_s2, "kept_windows_confounds_kids_full.csv"))
+readr::write_csv(best_windows_adult_full,           file.path(output_dir_s2, "best_windows_adults_full.csv"))
+readr::write_csv(kept_windows_confounds_adult_full, file.path(output_dir_s2, "kept_windows_confounds_adults_full.csv"))
