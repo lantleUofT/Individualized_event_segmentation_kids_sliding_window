@@ -3,7 +3,7 @@ set -euo pipefail
  
 # --- Parse args: optional --real flag, optional output dir ---
 REAL=0
-RUN_GSBS=0
+RUN_CROP=0
 OUTDIR=""
 PIPELINE_FLAGS=()   
 for arg in "$@"; do
@@ -11,8 +11,8 @@ for arg in "$@"; do
     --real)
       REAL=1
       PIPELINE_FLAGS+=("$arg") ;;
-    --run_GSBS)
-      RUN_GSBS=1
+    --run_crop)
+      RUN_CROP=1
       PIPELINE_FLAGS+=("$arg") ;;
     --run_validation)
       PIPELINE_FLAGS+=("$arg") ;;
@@ -24,10 +24,10 @@ for arg in "$@"; do
 done
 
 
-# --run_GSBS is meaningless without --real (toy mode has no BOLDs to crop).
+# --run_crop is meaningless without --real (toy mode has no BOLDs to crop).
 #Fail loudly
-if [ "${RUN_GSBS}" -eq 1 ] && [ "${REAL}" -ne 1 ]; then
-  echo "ERROR: --run_GSBS requires --real (the bold crop has nothing to run on in toy mode)." >&2
+if [ "${RUN_CROP}" -eq 1 ] && [ "${REAL}" -ne 1 ]; then
+  echo "ERROR: --run_crop requires --real (the bold crop has nothing to run on in toy mode)." >&2
   exit 1
 fi
  
