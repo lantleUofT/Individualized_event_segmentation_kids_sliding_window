@@ -6,7 +6,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --output=/scratch/%u/logs/gsbs_sch100_9nodes_%A_%a.out
 #SBATCH --error=/scratch/%u/logs/gsbs_sch100_9nodes_%A_%a.err
-#SBATCH --array=0-1
+#SBATCH --array=0-3
 
 set -e
 trap "echo 'Interrupted. Exiting...'; exit 1" INT
@@ -21,7 +21,7 @@ module load apptainer/1.3.5
 
 CONTAINER=/project/def-amyfinn/leviaa/containers/gsbs_py_amd64.sif
 SCRIPT=/project/def-amyfinn/leviaa/gsbs/GSBS_support_COMPUTECAN.py
-SUBJECTS_FILE=/scratch/leviaa/subjects_missing_rois_clean.txt
+SUBJECTS_FILE=/scratch/leviaa/subjects_partial_window.txt
 
 # 🔴 NEW: resampled Schaefer atlas on SCRATCH
 ATLAS_FILE=/scratch/${USER}/atlases/Schaefer2018_100Parcels_7Networks_movieDM_resamp_2p4mm_cropped.nii.gz
@@ -64,7 +64,7 @@ echo "Total subjects in list: ${NSUBJECTS}"
 ############################
 # 3. Divide subjects across 4 nodes
 ############################
-NODES=2
+NODES=4
 TASK_ID=${SLURM_ARRAY_TASK_ID}
 
 CHUNK_SIZE=$(( (NSUBJECTS + NODES - 1) / NODES ))
@@ -117,7 +117,7 @@ parallel --jobs ${JOBS} --linebuffer \
       "'"${CONTAINER}"'" \
       python "'"${SCRIPT}"'" \
         --subject "${sub}" \
-        --kmax 140 \
+        --kmax 89 \
         --atlas-nifti "'"${ATLAS_FILE}"'"
 
     echo "[$(date)] [${SLURM_JOB_ID}/${SLURM_ARRAY_TASK_ID}] Finished subject ${sub}"

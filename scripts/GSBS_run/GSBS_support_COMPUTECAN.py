@@ -73,7 +73,7 @@ def main():
     parser.add_argument(
         "--regressed-root",
         type=str,
-        default="/scratch/leviaa/HBN_full_fmriprep/data_clean/regressed",
+        default="/scratch/leviaa/HBN_full_fmriprep/data_clean/partial_window",
         help="Root directory for regressed NIfTIs.",
     )
     parser.add_argument(
@@ -86,7 +86,7 @@ def main():
     parser.add_argument(
         "--output-root",
         type=str,
-        default="/scratch/leviaa/HBN_full_fmriprep/gsbs_schaefer100",
+        default="/scratch/leviaa/HBN_full_fmriprep/gsbs_schaefer100_partial_window",
         help="Root directory for GSBS outputs.",
     )
 
@@ -94,7 +94,7 @@ def main():
     parser.add_argument(
         "--kmax",
         type=int,
-        default=140,
+        default=89,
         help="Max number of states to consider (default: 50, we use 140).",
     )
     parser.add_argument(
@@ -131,9 +131,9 @@ def main():
 
     # ---------- Build paths automatically ----------
     input_nifti = os.path.join(
-        args.regressed_root,
-        f"{sub}_task-movieDM_space-MNI152NLin2009cAsym_desc-preproc_cropped_bold.nii.gz",
-    )
+    args.regressed_root,
+    f"{sub}_task-movieDM_space-MNI152NLin2009cAsym_desc-preproc_partial_window_bold.nii.gz",
+)
 
     if not os.path.isfile(input_nifti):
         raise FileNotFoundError(f"Input NIfTI not found: {input_nifti}")
