@@ -7,7 +7,7 @@
 #
 # Flags:
 #   --real            Use real data + config_local.yaml; skip toy data gen.
-#   --run_GSBS        Enable the s2.5 bold crop (requires --real too; gate
+#   --run_crop        Enable the s2.5 bold crop (requires --real too; gate
 #                     enforced inside Sliding_window_nii_copy_crop.sh).
 #   --run_validation  Enable s4 (individualized validation). Off by default.
 #
@@ -33,7 +33,7 @@ for arg in "$@"; do
       SKIP_TOY=1
       CONFIG_FILE="config_local.yaml"
       ;;
-    --run_GSBS)
+    --run_crop)
       ;;
     --run_validation)
       RUN_VALIDATION=1
@@ -78,7 +78,7 @@ echo ">>> [2/4] Sliding window analysis ..."
 Rscript scripts/Sliding_window_analysis.R "${CONFIG_FILE}"
 
 
-# --- Bold crop (gated: needs --real AND --run_GSBS) ---
+# --- Bold crop (gated: needs --real AND --run_crop) ---
 echo ">>> [2.5/4] Bold crop (gated) ..."
 bash scripts/Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh "$@"
 

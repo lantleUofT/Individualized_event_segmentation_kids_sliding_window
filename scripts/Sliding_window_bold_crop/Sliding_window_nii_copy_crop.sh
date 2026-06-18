@@ -11,19 +11,19 @@ set -e
 trap "echo 'Interrupted. Exiting...'; exit 1" INT
 
 ########################################
-# 0. Flag gate — only run when BOTH --real and --run_GSBS are passed
+# 0. Flag gate — only run when BOTH --real and --run_crop are passed
 ########################################
 REAL=0
-RUN_GSBS=0
+RUN_CROP=0
 for arg in "$@"; do
   case "$arg" in
     --real)     REAL=1 ;;
-    --run_GSBS) RUN_GSBS=1 ;;
+    --run_crop) RUN_CROP=1 ;;
   esac
 done
 
-if [ "$REAL" -ne 1 ] || [ "$RUN_GSBS" -ne 1 ]; then
-  echo ">>> [crop] skipped (needs --real AND --run_GSBS; got real=$REAL gsbs=$RUN_GSBS)"
+if [ "$REAL" -ne 1 ] || [ "$RUN_CROP" -ne 1 ]; then
+  echo ">>> [crop] skipped (needs --real AND --run_crop; got real=$REAL crop=$RUN_CROP)"
   exit 0
 fi
 
@@ -60,7 +60,7 @@ fi
 if [ ! -f "${REPO_ROOT}/${CONFIG_FILE}" ]; then
   echo "ERROR: REPO_ROOT='${REPO_ROOT}' does not contain ${CONFIG_FILE}."
   echo ">> Standalone sbatch: cd into the repo root first, then submit:"
-  echo "     cd /path/to/repo && sbatch scripts/Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh --real --run_GSBS"
+  echo "     cd /path/to/repo && sbatch scripts/Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh --real --run_crop"
   echo ">> Or run it through scripts/run_pipeline.sh, which sets REPO_ROOT for you."
   exit 1
 fi

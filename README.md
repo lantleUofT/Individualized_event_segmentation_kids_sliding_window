@@ -55,7 +55,7 @@ Individualized_event_segmentation_kids_sliding_window/
 The pipeline accepts three optional flags, applied in any combination:
 
 - `--real` — use real data and `config_local.yaml` instead of generating toy data.
-- `--run_GSBS` — run the bold-crop step (2.5), which crops each subject's BOLD to its
+- `--run_crop` — run the bold-crop step (2.5), which crops each subject's BOLD to its
   selected sliding window for downstream GSBS. Gated: requires `--real` (toy mode has
   no BOLDs to crop).
 - `--run_validation` — run the validation stage (4). Off by default; valid in either
@@ -81,7 +81,7 @@ docker run --rm eventseg-pipeline
 
 `docker run` executes toy-data generation, harmonization, sliding-window selection,
 and preprocessing, printing a summary for each. Validation (stage 4) and the bold
-crop (step 2.5) are opt-in; add `--run_validation` and `--run_GSBS` to include them.
+crop (step 2.5) are opt-in; add `--run_validation` and `--run_crop` to include them.
 
 ```bash
 docker run --rm -v "$(pwd)/data:/pipeline/data" eventseg-pipeline
@@ -113,7 +113,7 @@ preprocessing on your real data. To also crop BOLDs and run validation, add the
 gated flags:
 
 ```bash
-docker run --rm -v "$(pwd)/data:/pipeline/data" eventseg-pipeline --real --run_GSBS --run_validation
+docker run --rm -v "$(pwd)/data:/pipeline/data" eventseg-pipeline --real --run_crop --run_validation
 ```
 
 Please note that running without the volume mount (e.g. 
@@ -141,17 +141,17 @@ Place your inputs in a `real_data/` directory next to the script and a `config_l
 Then run:
 
 ```bash
-bash run_pipeline_on_cluster.sh --real --run_GSBS --run_validation
+bash run_pipeline_on_cluster.sh --real --run_crop --run_validation
 ```
 
 This skips toy-data generation, binds your `real_data/` and `config_local.yaml`
 into the container, runs the crop and validation stages, and writes results to
 `data/`. The flags are forwarded into the container and gated there, exactly as in
-the Docker path; `--run_GSBS` without `--real` is rejected. To write outputs
+the Docker path; `--run_crop` without `--real` is rejected. To write outputs
 elsewhere, pass a path:
 
 ```bash
-bash run_pipeline_on_cluster.sh --real --run_GSBS --run_validation /scratch/your_user/results
+bash run_pipeline_on_cluster.sh --real --run_crop --run_validation /scratch/your_user/results
 ```
 
 
@@ -241,7 +241,7 @@ output, so they must run in order.
    comparison group for the developmental sample once the method is validated.
 
 2.5. **Bold crop** (`Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh`, `crop_bold.py`)
-   Optional, gated behind `--real --run_GSBS`. For each subject in the kids and adults
+   Optional, gated behind `--real --run_crop`. For each subject in the kids and adults
    window manifests, crops the 4D BOLD to the selected `win_length` TR window and writes
    a new NIfTI to `bold_crop.cropped_dir`, leaving the input untouched. This prepares
    per-subject inputs for downstream GSBS. Subjects parallelize across available cores.
@@ -325,8 +325,7 @@ also work.
 | `cropped_dir` | `data/cropped_partial_window` | Output dir for cropped windows (must differ from `regressed_dir`) |
 | `bold_suffix` | `_task-movieDM_..._cropped_bold.nii.gz` | Filename suffix appended to subject ID for input files |
 | `output_suffix` | `_task-movieDM_..._partial_window_bold.nii.gz` | Filename suffix for cropped outputs |
-| `manifest_kids` | `best_windows_kids.csv` | Stage 2 kids window manifest (under `output_dir_s2`) |
-| `manifest_adults` | `best_windows_adults.csv` | Stage 2 adults window manifest (under `output_dir_s2`) |
+
 
 ### `container`
 | Key | Default | Description |
