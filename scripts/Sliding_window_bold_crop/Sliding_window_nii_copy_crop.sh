@@ -67,7 +67,7 @@ fi
 cd "${REPO_ROOT}"
 
 IFS=$'\t' read -r regressed_rel cropped_rel bold_suffix output_suffix s2_rel \
-                  manifest_kids_name manifest_adults_name python_exec < <(
+                  python_exec < <(
   python3 -c "
 import yaml
 c = yaml.safe_load(open('${CONFIG_FILE}'))
@@ -75,8 +75,7 @@ b = c['bold_crop']
 cont = c.get('container', {})
 print('\t'.join(str(x) for x in [
     b['regressed_dir'], b['cropped_dir'], b['bold_suffix'], b['output_suffix'],
-    c['paths']['output_dir_s2'], b['manifest_kids'], b['manifest_adults'],
-    cont.get('python_exec', 'python3'),
+    c['paths']['output_dir_s2'], cont.get('python_exec', 'python3'),
 ]))
 "
 )
@@ -91,8 +90,8 @@ fi
 # --- Filepaths --- #
 regressed_root="${REPO_ROOT}/${regressed_rel}"
 cropped_root="${REPO_ROOT}/${cropped_rel}"
-manifest_kids="${REPO_ROOT}/${s2_rel}/${manifest_kids_name}"
-manifest_adults="${REPO_ROOT}/${s2_rel}/${manifest_adults_name}"
+manifest_kids="${REPO_ROOT}/${s2_rel}/best_windows_kids.csv"
+manifest_adults="${REPO_ROOT}/${s2_rel}/best_windows_adults.csv"
 config_file="${REPO_ROOT}/${CONFIG_FILE}"
 
 # --- The python worker ---#

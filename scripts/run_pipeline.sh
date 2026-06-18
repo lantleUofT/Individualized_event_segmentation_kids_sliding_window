@@ -79,7 +79,7 @@ Rscript scripts/Sliding_window_analysis.R "${CONFIG_FILE}"
 
 
 # --- Bold crop (gated: needs --real AND --run_GSBS) ---
-echo ">>> [2.5] Bold crop (gated) ..."
+echo ">>> [2.5/4] Bold crop (gated) ..."
 bash scripts/Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh "$@"
 
 

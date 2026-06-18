@@ -3,13 +3,33 @@ set -euo pipefail
  
 # --- Parse args: optional --real flag, optional output dir ---
 REAL=0
+RUN_GSBS=0
 OUTDIR=""
+PIPELINE_FLAGS=()   
 for arg in "$@"; do
   case "$arg" in
-    --real) REAL=1 ;;
-    *)      OUTDIR="$arg" ;;
+    --real)
+      REAL=1
+      PIPELINE_FLAGS+=("$arg") ;;
+    --run_GSBS)
+      RUN_GSBS=1
+      PIPELINE_FLAGS+=("$arg") ;;
+    --run_validation)
+      PIPELINE_FLAGS+=("$arg") ;;
+    --*)
+      echo "ERROR: unknown flag '$arg'" >&2; exit 1 ;;
+    *)
+      OUTDIR="$arg" ;;
   esac
 done
+
+
+# --run_GSBS is meaningless without --real (toy mode has no BOLDs to crop).
+#Fail loudly
+if [ "${RUN_GSBS}" -eq 1 ] && [ "${REAL}" -ne 1 ]; then
+  echo "ERROR: --run_GSBS requires --real (the bold crop has nothing to run on in toy mode)." >&2
+  exit 1
+fi
  
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SIF="${HERE}/eventseg.sif"
@@ -30,7 +50,7 @@ if [ "${REAL}" -eq 1 ]; then
     --bind "${CONFIG_LOCAL}:/pipeline/config_local.yaml" \
     --bind "${OUTDIR}/data:/pipeline/data" \
     "${SIF}" \
-    bash /pipeline/scripts/run_pipeline.sh --real
+    bash /pipeline/scripts/run_pipeline.sh ${PIPELINE_FLAGS[@]+"${PIPELINE_FLAGS[@]}"}
 else
   # --- TOY demo mode ---
   mkdir -p "${OUTDIR}/Toy_data_directory"
@@ -38,7 +58,7 @@ else
     --bind "${OUTDIR}/Toy_data_directory:/pipeline/Toy_data_directory" \
     --bind "${OUTDIR}/data:/pipeline/data" \
     "${SIF}" \
-    bash /pipeline/scripts/run_pipeline.sh
+    bash /pipeline/scripts/run_pipeline.sh ${PIPELINE_FLAGS[@]+"${PIPELINE_FLAGS[@]}"}
 fi
  
 echo "Outputs written to: ${OUTDIR}/data"

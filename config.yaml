@@ -49,12 +49,9 @@ bold_crop:
   cropped_dir:   "data/cropped_partial_window"
   bold_suffix:   "_task-movieDM_space-MNI152NLin2009cAsym_desc-preproc_cropped_bold.nii.gz"
   output_suffix: "_task-movieDM_space-MNI152NLin2009cAsym_desc-preproc_partial_window_bold.nii.gz"
-  manifest_kids:   "best_windows_kids.csv"
-  manifest_adults: "best_windows_adults.csv"
 
 # --- Container for Apptainer run --- #
-container:
-  runtime:     "docker"     
+container:   
   python_exec: "python3"
  
 # --- Stage 3: preprocessing for final analysis ---#
