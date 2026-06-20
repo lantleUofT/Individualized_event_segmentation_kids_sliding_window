@@ -69,61 +69,77 @@ def main():
         help="Subject ID (e.g. sub-NDARXXXXXXX).",
     )
 
-    # Defaults match your current layout; override only if needed
     parser.add_argument(
         "--regressed-root",
         type=str,
-        default="/scratch/leviaa/HBN_full_fmriprep/data_clean/partial_window",
-        help="Root directory for regressed NIfTIs.",
+        required=True,
+        help="Root directory for input NIfTIs (driver passes input_dir_full or input_dir_partial).",
     )
+    
     parser.add_argument(
         "--atlas-nifti",
         type=str,
-        default="/scratch/leviaa/atlases/"
-                "Schaefer2018_100Parcels_7Networks_movieDM_resamp_2p4mm_cropped.nii.gz",
+        required=True,
         help="Path to Schaefer 100-parcel atlas NIfTI (resampled to 2.4mm movieDM grid).",
     )
+    
     parser.add_argument(
         "--output-root",
         type=str,
-        default="/scratch/leviaa/HBN_full_fmriprep/gsbs_schaefer100_partial_window",
-        help="Root directory for GSBS outputs.",
+        required=True,
+        help="Root directory for GSBS outputs (driver passes output_dir_full or output_dir_partial).",
+    )
+
+    parser.add_argument(
+        "--input-suffix",
+        type=str,
+        required=True,
+        help="Filename suffix appended to the subject ID to form the input NIfTI name. "
+             "Differs per run: '_cropped_bold.nii.gz' for the full window, "
+             "'_partial_window_bold.nii.gz' for the cropped partial window.",
     )
 
     # GSBS hyperparameters
     parser.add_argument(
         "--kmax",
         type=int,
-        default=89,
-        help="Max number of states to consider (default: 50, we use 140).",
+        required=True,
+        help="Max number of states to consider (driver passes kmax_full or kmax_partial).",
     )
+
     parser.add_argument(
         "--dmin",
         type=int,
-        default=1,
-        help="Number of TRs around diagonal to ignore in t-distance (default: 1).",
+        required=True,
+        help="Number of TRs around diagonal to ignore in t-distance.",
     )
+
     parser.add_argument(
         "--blocksize",
         type=int,
-        default=25,
-        help="Minimum block size for boundary search (default: 25).",
+        required=True,
+        help="Minimum block size for boundary search.",
     )
+
     parser.add_argument(
-        "--no-statewise",
-        action="store_true",
-        help="Disable statewise detection (use original GSBS: 1 boundary per iteration).",
+        "--statewise-detection",
+        type=lambda s: s.lower() in ("true", "1", "yes"),
+        required=True,
+        help="Enable statewise GSBS detection (True) or original 1-boundary-per-iteration (False).",
     )
+    
     parser.add_argument(
         "--finetune",
         type=int,
-        default=1,
+        required=True,
         help="Finetuning window in TRs around each boundary (0 = no finetune, <0 = full series).",
     )
+
     parser.add_argument(
-        "--finetune-strongest-first",
-        action="store_true",
-        help="If set, finetune order is strongest->weakest (default: weakest->strongest).",
+        "--finetune-order-weakest-first",
+        type=lambda s: s.lower() in ("true", "1", "yes"),
+        required=True,
+        help="Finetune order: True = weakest->strongest (default behaviour), False = strongest->weakest.",
     )
 
     args = parser.parse_args()
@@ -131,9 +147,9 @@ def main():
 
     # ---------- Build paths automatically ----------
     input_nifti = os.path.join(
-    args.regressed_root,
-    f"{sub}_task-movieDM_space-MNI152NLin2009cAsym_desc-preproc_partial_window_bold.nii.gz",
-)
+        args.regressed_root,
+        f"{sub}{args.input_suffix}",
+    )
 
     if not os.path.isfile(input_nifti):
         raise FileNotFoundError(f"Input NIfTI not found: {input_nifti}")
@@ -162,8 +178,8 @@ def main():
     print(f"Atlas labels detected (excluding 0): {len(labels)} parcels")
 
     # --- GSBS parameters (shared across ROIs) ---
-    statewise_detection = not args.no_statewise
-    finetune_order = not args.finetune_strongest_first
+    statewise_detection = args.statewise_detection
+    finetune_order = args.finetune_order_weakest_first
 
     print("GSBS parameters:")
     print(f"  kmax               = {args.kmax}")

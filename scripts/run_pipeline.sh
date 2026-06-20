@@ -2,16 +2,17 @@
 # =====================================================================
 # Runs full pipeline including toy data generation
 #
-# Order:  toy data gen  ->  s1 harmonization  ->  s2 sliding window
-#         ->  s2.5 bold crop  ->  s3 preprocessing  ->  s4 validation
+# # Order:  toy data gen  ->  s1 harmonization  ->  s2 sliding window
+#         ->  s2.2 bold crop  ->  s2.4 GSBS (full)  ->  s2.6 GSBS (partial)
+#         ->  s3 preprocessing  ->  s4 validation
 #
 # Flags:
 #   --real            Use real data + config_local.yaml; skip toy data gen.
-#   --run_crop        Enable the s2.5 bold crop (requires --real too; gate
+#   --run_crop        Enable the s2.2 bold crop (requires --real too; gate
 #                     enforced inside Sliding_window_nii_copy_crop.sh).
+#   --run_GSBS        Enable s2.4 + s2.6 GSBS (requires --real too; gate
+#                     enforced inside run_GSBS_driver.sh).
 #   --run_validation  Enable s4 (individualized validation). Off by default.
-#
-# Run while cd'd into repo root:  bash scripts/run_pipeline.sh
 # =====================================================================
 
 # Halt on first error (-e), undefined var (-u), or failed pipe step (pipefail).
@@ -34,6 +35,8 @@ for arg in "$@"; do
       CONFIG_FILE="config_local.yaml"
       ;;
     --run_crop)
+      ;;
+    --run_GSBS)
       ;;
     --run_validation)
       RUN_VALIDATION=1
@@ -78,9 +81,15 @@ echo ">>> [2/4] Sliding window analysis ..."
 Rscript scripts/Sliding_window_analysis.R "${CONFIG_FILE}"
 
 
-# --- Bold crop (gated: needs --real AND --run_crop) ---
-echo ">>> [2.5/4] Bold crop (gated) ..."
+# --- Stage 2.2: Bold crop (gated: needs --real AND --run_crop) ---
+echo ">>> [2.2] Bold crop (gated) ..."
 bash scripts/Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh "$@"
+
+
+# --- Stage 2.4 + 2.6: GSBS event segmentation (gated: needs --real AND --run_GSBS) ---
+# The driver runs both passes: 2.4 (full window) and 2.6 (partial window).
+echo ">>> [2.4 + 2.6] GSBS (gated) ..."
+bash scripts/GSBS_run/run_GSBS_driver.sh "$@"
 
 
 # --- Stage 3: preprocessing for final analysis ---

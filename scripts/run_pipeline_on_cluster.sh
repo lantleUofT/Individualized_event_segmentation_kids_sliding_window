@@ -4,6 +4,7 @@ set -euo pipefail
 # --- Parse args: optional --real flag, optional output dir ---
 REAL=0
 RUN_CROP=0
+RUN_GSBS=0
 OUTDIR=""
 PIPELINE_FLAGS=()   
 for arg in "$@"; do
@@ -15,6 +16,9 @@ for arg in "$@"; do
       RUN_CROP=1
       PIPELINE_FLAGS+=("$arg") ;;
     --run_validation)
+      PIPELINE_FLAGS+=("$arg") ;;
+    --run_GSBS)
+      RUN_GSBS=1
       PIPELINE_FLAGS+=("$arg") ;;
     --*)
       echo "ERROR: unknown flag '$arg'" >&2; exit 1 ;;
@@ -28,6 +32,11 @@ done
 #Fail loudly
 if [ "${RUN_CROP}" -eq 1 ] && [ "${REAL}" -ne 1 ]; then
   echo "ERROR: --run_crop requires --real (the bold crop has nothing to run on in toy mode)." >&2
+  exit 1
+fi
+
+if [ "${RUN_GSBS}" -eq 1 ] && [ "${REAL}" -ne 1 ]; then
+  echo "ERROR: --run_GSBS requires --real (GSBS has no BOLDs to run on in toy mode)." >&2
   exit 1
 fi
  

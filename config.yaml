@@ -43,7 +43,7 @@ sliding_window:
   win_length_full:    355
   max_w_num_full:     1
 
-# --- Bold crop (for GSBS based on extracted windows) ---#
+# --- Stage 2.20: Bold crop (for GSBS based on extracted windows) ---#
 bold_crop:
   regressed_dir: "data/neural_test_data"
   cropped_dir:   "data/cropped_partial_window"
@@ -53,7 +53,30 @@ bold_crop:
 # --- Container for Apptainer run --- #
 container:   
   python_exec: "python3"
- 
+
+# --- Stage 2.40-2.60: GSBS (event segmentation on full and cropped BOLD) ---#
+gsbs:
+  # 2.40: GSBS on the full neural data
+  input_dir_full:   "data/neural_test_data"
+  input_suffix_full: "_task-movieDM_space-MNI152NLin2009cAsym_desc-preproc_cropped_bold.nii.gz"
+  output_dir_full:  "data/gsbs_output/neural_test_data"
+  kmax_full:           140
+
+  # 2.60: GSBS on the cropped partial-window data (bold_crop output)
+  input_dir_partial:   "data/cropped_partial_window"
+  input_suffix_partial: "_task-movieDM_space-MNI152NLin2009cAsym_desc-preproc_partial_window_bold.nii.gz"
+  output_dir_partial:  "data/gsbs_output/cropped_partial_window"
+  kmax_partial:           89
+
+  # Shared inputs / hyperparameters
+  atlas_nifti:    "data/atlases/Schaefer2018_100Parcels_7Networks_movieDM_resamp_2p4mm_cropped.nii.gz"
+  dmin:           1
+  blocksize:      25
+  finetune:       1
+  cores_per_subject: 4
+  statewise_detection: 'true'
+  finetune_order_weakest_first: 'true'
+   
 # --- Stage 3: preprocessing for final analysis ---#
 preprocessing:
   neural_tr_offset: 1
