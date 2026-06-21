@@ -4,7 +4,7 @@
 #
 # # Order:  toy data gen  ->  s1 harmonization  ->  s2 sliding window
 #         ->  s2.2 bold crop  ->  s2.4 GSBS (full)  ->  s2.6 GSBS (partial)
-#         ->  s3 preprocessing  ->  s4 validation
+#         ->  s2.8 stitch neural data  ->  s3 preprocessing  ->  s4 validation
 #
 # Flags:
 #   --real            Use real data + config_local.yaml; skip toy data gen.
@@ -12,6 +12,9 @@
 #                     enforced inside Sliding_window_nii_copy_crop.sh).
 #   --run_GSBS        Enable s2.4 + s2.6 GSBS (requires --real too; gate
 #                     enforced inside run_GSBS_driver.sh).
+#   --stitch_neural_data  Enable s2.8 (assemble GSBS per-ROI TSVs into the
+#                     MASTER neural file(s); requires --real too; gate
+#                     enforced inside stitch_neural_data.sh).
 #   --run_validation  Enable s4 (individualized validation). Off by default.
 # =====================================================================
 
@@ -37,6 +40,8 @@ for arg in "$@"; do
     --run_crop)
       ;;
     --run_GSBS)
+      ;;
+    --stitch_neural_data)
       ;;
     --run_validation)
       RUN_VALIDATION=1
@@ -90,6 +95,12 @@ bash scripts/Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh "$@"
 # The driver runs both passes: 2.4 (full window) and 2.6 (partial window).
 echo ">>> [2.4 + 2.6] GSBS (gated) ..."
 bash scripts/GSBS_run/run_GSBS_driver.sh "$@"
+
+
+# --- Stage 2.8: stitch GSBS per-ROI TSVs into MASTER neural file(s) ---
+# Gated: needs --real AND --stitch_neural_data.
+echo ">>> [2.8] Stitch neural data (gated) ..."
+bash scripts/stitch_neural_data.sh "$@"
 
 
 # --- Stage 3: preprocessing for final analysis ---

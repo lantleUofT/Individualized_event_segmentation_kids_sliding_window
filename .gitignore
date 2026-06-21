@@ -26,3 +26,4 @@ renv/staging/
 *.tar
 *.sif
 
+scripts/Robyn_denoising/

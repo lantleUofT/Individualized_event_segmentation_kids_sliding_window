@@ -11,7 +11,11 @@ paths:
   phenotype_file: "Toy_data_directory/Phenotype_data/HBN_complete_Pheno.csv"
  
   # --- Raw neural input (Stage 3) — default to toy dir ---#
-  neural_file:    "Toy_data_directory/Neural_data/MASTER_allSubjects_allrois_boundaries_stacked.tsv"
+  neural_file_partial: "Toy_data_directory/Neural_data/MASTER_partial_allrois_boundaries_stacked.tsv"
+  neural_file_full:    "Toy_data_directory/Neural_data/MASTER_allSubjects_allrois_boundaries_stacked.tsv"
+  #when adapting for a real run use these
+  #neural_file_partial:       /data/neural/MASTER_allSubjects_allrois_boundaries_stacked_test.tsv
+  #neural_file_full:  /data/neural/MASTER_allSubjects_allrois_boundaries_stacked_full_test.tsv
  
   # --- Stage outputs ---
   output_dir_s1:  "data/harmonization_output"

@@ -19,8 +19,8 @@ output_dir_s4 <- cfg$paths$output_dir_s4
 dir.create(output_dir_s4, showWarnings = FALSE, recursive = TRUE)
 
 #--- Final analysis neural data file ---#
-neural_confound_extracted_windows_df <- readRDS(file.path(output_dir_s3, "neural_confound_extracted_windows_df.rds"))
-neural_confound_extracted_windows_adult_df <- readRDS(file.path(output_dir_s3, "neural_confound_extracted_windows_adult_df.rds"))
+neural_confound_extracted_windows_df       <- readRDS(file.path(output_dir_s3, "neural_confound_partial_df.rds"))
+neural_confound_extracted_windows_adult_df <- readRDS(file.path(output_dir_s3, "neural_confound_partial_adult_df.rds"))
 
 #--- Set all parameters ---#
 high_motion_TR_threshold <- cfg$validation$high_motion_tr_threshold

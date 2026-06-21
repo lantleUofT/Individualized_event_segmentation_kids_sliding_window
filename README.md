@@ -10,10 +10,10 @@ It extracts reliable windows of individualized neural state boundary timeseries
 unbiased by motion in children (which Wilford et al's (2025) pipeline was unable
 to do). The selected windows will be output into /data/final_harmonization_output
 
-The validation analyses include: ensuring number and location of boundaries are 
-not correlated with motion, as well as that neural state boundaries significantly 
-correlate with behavioral event boundaries, a hallmark of typical neural event 
-segmentation studies.
+> **Beta:** GSBS event segmentation (stages 2.4/2.6) and neural-data stitching
+> (stage 2.8) are now run inside the pipeline rather than supplied as external
+> input. These stages are under active development — see the flags and stage
+> descriptions below.
 
 
 ## Repo File Structure
@@ -30,6 +30,10 @@ Individualized_event_segmentation_kids_sliding_window/
 │   ├── Sliding_window_bold_crop/
 │   │   ├── Sliding_window_nii_copy_crop.sh
 │   │   └── crop_bold.py
+│   ├── GSBS_run/
+│   │   ├── run_GSBS_driver.sh
+│   │   └── GSBS_worker.py
+│   ├── stitch_neural_data.sh
 │   ├── Data_preprocessing_for_final_analysis.R
 │   ├── Individualized_event_segmentation_validation_kids.R
 │   ├── run_pipeline.sh
@@ -52,17 +56,23 @@ Individualized_event_segmentation_kids_sliding_window/
 
 ### Flags
 
-The pipeline accepts three optional flags, applied in any combination:
+The pipeline accepts these optional flags, applied in any combination:
 
 - `--real` — use real data and `config_local.yaml` instead of generating toy data.
 - `--run_crop` — run the bold-crop step (2.5), which crops each subject's BOLD to its
   selected sliding window for downstream GSBS. Gated: requires `--real` (toy mode has
   no BOLDs to crop).
+- `--run_GSBS` *(beta)* — run GSBS event segmentation on the full and cropped BOLD
+  (stages 2.4 and 2.6), writing per-ROI boundary timeseries. Gated: requires `--real`.
+- `--stitch_neural_data` *(beta)* — assemble the per-ROI GSBS outputs into the stacked
+  MASTER neural file(s) consumed by stage 3 (stage 2.8). Gated: requires `--real`.
 - `--run_validation` — run the validation stage (4). Off by default; valid in either
   toy or real mode.
 
 With no flags the pipeline runs toy data generation, harmonization, sliding-window
-selection, and preprocessing — it stops before the crop and validation stages.
+selection, and preprocessing — it stops before the crop, GSBS, stitch, and validation
+stages. The GSBS and stitch stages only apply to real data and are each gated behind
+their own flag in addition to `--real`.
 
 ## Running it
 
@@ -109,11 +119,11 @@ docker run --rm eventseg-pipeline --real
 ```
 
 `docker run --real` executes harmonization, sliding-window selection, and
-preprocessing on your real data. To also crop BOLDs and run validation, add the
-gated flags:
+preprocessing on your real data. To also crop BOLDs to they match the extracted
+sliding windows, run GSBS and run validation, add the following gated flags:
 
 ```bash
-docker run --rm -v "$(pwd)/data:/pipeline/data" eventseg-pipeline --real --run_crop --run_validation
+docker run --rm -v "$(pwd)/data:/pipeline/data" eventseg-pipeline --real --run_crop --run_GSBS --stitch_neural_data --run_validation
 ```
 
 Please note that running without the volume mount (e.g. 
@@ -123,9 +133,9 @@ and are discarded: useful for verifying it works, not for keeping results.
 
 ### Apptainer (HPC / Singularity environments)
 
-A prebuilt `.sif` is attached to the latest [Release](../../releases). Download it
-alongside the repository `run_pipeline_on_cluster.sh`, place both in the same 
-directory (`run_pipeline_on_cluster.sh` ships in repo/scripts), and run:
+Build the `.sif` yourself from the Docker image (see **Build your own .sif** below),
+place it in the same directory as `run_pipeline_on_cluster.sh` (which ships in
+repo/scripts) and run:
 
 ```bash
 bash run_pipeline_on_cluster.sh
@@ -141,14 +151,23 @@ Place your inputs in a `real_data/` directory next to the script and a `config_l
 Then run:
 
 ```bash
-bash run_pipeline_on_cluster.sh --real --run_crop --run_validation
+bash run_pipeline_on_cluster.sh --real --run_crop --run_GSBS --stitch_neural_data --run_validation
 ```
 
 This skips toy-data generation, binds your `real_data/` and `config_local.yaml`
 into the container, runs the crop and validation stages, and writes results to
 `data/`. The flags are forwarded into the container and gated there, exactly as in
-the Docker path; `--run_crop` without `--real` is rejected. To write outputs
-elsewhere, pass a path:
+the Docker path; `--run_crop` without `--real` is rejected. 
+
+To write outputs
+elsewhere, pass a path as the final argument. This becomes the **data root** for the
+run: the script binds `<path>/data` to `/pipeline/data` inside the container, and
+every stage reads its inputs from and writes its outputs to that location. Because
+later stages consume earlier stages' outputs from this same directory, your real
+input data must already be staged under `<path>/data/` before launching — the path
+is not output-only. With no path argument, the data root defaults to `./data` next 
+to the script.
+
 
 ```bash
 bash run_pipeline_on_cluster.sh --real --run_crop --run_validation /scratch/your_user/results
@@ -156,8 +175,7 @@ bash run_pipeline_on_cluster.sh --real --run_crop --run_validation /scratch/your
 
 
 **Build your own .sif:**
-To build the `.sif` yourself instead of downloading it, build the Docker image (above),
-then convert it:
+To build the `.sif` yourself, build the Docker image (above), then convert it:
 
 ```bash
 docker build -t eventseg-pipeline .
@@ -181,22 +199,7 @@ rebuild the `.sif` from the updated image — the `.sif` is a snapshot, not a li
 
 ## Expected Input
 
-### 1. Neural state-boundary timeseries (GSBS output)
-
-A single tab-separated file (`neural_file` in config), stacking all subjects,
-ROIs, and timepoints. One row per subject × ROI × TR. This should also contain a
-binary event boundary timeseries and a boundary strength timeseries with one value
-per row.
-
-
-### 2. Behavioural boundary annotations
-
-One CSV **per rater** in the behavioural directory (`behavioral_dir` in config). 
-Each file lists the TRs at which that rater marked an event boundary 
-(one row per boundary, not a full timeseries).
-
-
-### 3. Head-motion confounds
+### 1. Head-motion confounds
 
 One whitespace-delimited `.1D` file per subject in the confounds directory
 (`confound_dir` in config), named `sub-<ID>_confounds.1D`. **No header.** 
@@ -206,14 +209,53 @@ raw fMRIprep .1D confound files.
 
 You may find Wilford et al's (2025) pipeline at: (Repo in progress)
 
-You can find my version of this pipeline optimized for use in HPC environment with
-slurm at: (Repo in progress)
+
+### 2. Behavioural boundary annotations
+
+One CSV **per rater** in the behavioural directory (`behavioral_dir` in config). 
+Each file lists the TRs at which that rater marked an event boundary 
+(one row per boundary, not a full timeseries).
 
 
-### 4. Phenotype file
+### 3. Phenotype file
 
 A single CSV (`phenotype_file` in config) with one row per subject, containing 
 EID (subject ID with or without sub-) and an Age value.
+
+
+### 4. Neural state-boundary timeseries (GSBS output)
+
+There are two ways to provide neural data, depending on whether you run the
+in-pipeline GSBS stages.
+
+**Option A — run GSBS in-pipeline (beta, `--run_GSBS --stitch_neural_data`).**
+Supply each subject's full-length preprocessed BOLD as a 4D NIfTI in the GSBS
+full-input directory (`gsbs.input_dir_full` in config, default `data/neural_test_data`),
+named `sub-<ID>` + `gsbs.input_suffix_full`. The crop stage (2.5) derives the
+partial-window BOLD into `gsbs.input_dir_partial`, GSBS (2.4/2.6) segments both, and
+the stitch stage (2.8) assembles them into the stacked neural file(s) that stage 3
+reads. This path also requires a parcellation atlas NIfTI at `gsbs.atlas_nifti`
+(default is the atlas `data/atlases/Schaefer2018_100Parcels_7Networks_movieDM_resamp_2p4mm_cropped.nii.gz`),
+which must be present in /data/atlases/your_file_name and specified in the config_local.yaml
+
+
+**Option B — supply your own stacked neural file.** If you skip the GSBS stages,
+provide a single tab-separated file (`neural_file` in config) directly, stacking all
+subjects, ROIs, and timepoints: one row per subject × ROI × TR, with columns
+`subject, roi, TR, boundary, strength` (a binary event-boundary value and a boundary
+strength per row). This is the format the stitch stage produces and the format toy
+data generates.
+
+> **Beta note:** the GSBS path is under active development. Until it stabilizes,
+> Option B (bringing a pre-stacked neural file) is the more reliable route.
+
+
+
+
+
+
+
+
 
 ---
 
@@ -240,14 +282,26 @@ output, so they must run in order.
    (age ≥ `adult_age_min`) are separated from children in the outputs and retained as a
    comparison group for the developmental sample once the method is validated.
 
-2.5. **Bold crop** (`Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh`, `crop_bold.py`)
+2.2. **Bold crop** (`Sliding_window_bold_crop/Sliding_window_nii_copy_crop.sh`, `crop_bold.py`)
    Optional, gated behind `--real --run_crop`. For each subject in the kids and adults
    window manifests, crops the 4D BOLD to the selected `win_length` TR window and writes
    a new NIfTI to `bold_crop.cropped_dir`, leaving the input untouched. This prepares
    per-subject inputs for downstream GSBS. Subjects parallelize across available cores.
 
+2.4 + 2.6. **GSBS event segmentation** (`GSBS_run/run_GSBS_driver.sh`, `GSBS_worker.py`) *(beta)*
+   Optional, gated behind `--real --run_GSBS`. Runs Greedy State Boundary Search on
+   both the full-length BOLD (stage 2.4) and the cropped partial-window BOLD (stage 2.6),
+   producing per-subject, per-ROI neural state-boundary timeseries (binary boundary +
+   boundary strength per TR). Outputs are written per subject into the GSBS output
+   directories for each window.
+
+2.8. **Neural data stitching** (`stitch_neural_data.sh`) *(beta)*
+   Optional, gated behind `--real --stitch_neural_data`. Assembles the per-subject,
+   per-ROI GSBS outputs into the single stacked MASTER neural file(s) that stage 3
+   reads — one row per subject × ROI × TR. Runs once per window (full and partial).
+
 3. **Preprocessing** (`Data_preprocessing_for_final_analysis.R`)
-   Aligns the neural boundary/strength timeseries to the confound windows (applying a
+   Reads the stacked neural file(s) (from stage 2.8, or supplied directly), aligns the neural boundary/strength timeseries to the confound windows (applying a
    TR offset), inner-joins them to the kept motion windows, Gaussian-smooths the neural
    signals (boundary, strength, framewise displacement), and joins the group behavioural
    boundary density by TR (not for full timeseries). Produces four analysis-ready dataframes, children and adults,
@@ -255,7 +309,7 @@ output, so they must run in order.
    group average (mean smoothed boundary and strength per ROI × TR).
 
 4. **Validation** (`Individualized_event_segmentation_validation_kids.R`)
-   The core test. Within each participant and brain region it computes:
+   Within each participant and brain region it computes:
    - **Motion × neural boundaries** — a confound check: does head motion predict
      neural boundary strength and number? (Correlation should be non-significant)
    - **Behaviour × neural boundaries** — Can we replicate the commonly found behavioral
@@ -281,7 +335,7 @@ need to touch the scripts.
 | `confound_dir` | `Toy_data_directory/Confounds_data` | Directory of per-subject `.1D` motion confound files |
 | `behavioral_dir` | `Toy_data_directory/Behavioral_data` | Directory of per-rater behavioural boundary CSVs |
 | `phenotype_file` | `Toy_data_directory/Phenotype_data/HBN_complete_Pheno.csv` | Per-subject phenotype CSV (EID + Age) |
-| `neural_file` | `Toy_data_directory/Neural_data/MASTER_...stacked.tsv` | Stacked neural boundary/strength timeseries (GSBS output) |
+| `neural_file_full` | *(derived: `_full` suffix on `neural_file`)* | Stacked full-window neural file; defaults to `neural_file` with `_full` inserted before the extension if unset |
 | `output_dir_s1` | `data/harmonization_output` | Stage 1 output directory |
 | `output_dir_s2` | `data/sliding_window_output` | Stage 2 output directory |
 | `output_dir_s3` | `data/final_harmonization_output` | Stage 3 output directory |
@@ -318,7 +372,7 @@ also work.
 | `max_w_num_full` | `1` | Number of windows kept per subject in second sliding window |
 
 
-### `bold_crop` (Stage 2.5)
+### `bold_crop` (Stage 2.2)
 | Key | Default | Description |
 |-----|---------|-------------|
 | `regressed_dir` | `data/neural_test_data` | Input dir of per-subject 4D BOLD NIfTIs to crop |
@@ -327,10 +381,30 @@ also work.
 | `output_suffix` | `_task-movieDM_..._partial_window_bold.nii.gz` | Filename suffix for cropped outputs |
 
 
+### `gsbs` (Stages 2.4 / 2.6, beta)
+| Key | Default | Description |
+|-----|---------|-------------|
+| `input_dir_full` | `data/neural_test_data` | Input dir of full-length 4D BOLD NIfTIs for the full GSBS pass |
+| `input_suffix_full` | `_task-movieDM_..._cropped_bold.nii.gz` | Filename suffix appended to subject ID for full-pass inputs |
+| `output_dir_full` | `data/gsbs_output/neural_test_data` | Output dir for full-window per-ROI boundary timeseries |
+| `kmax_full` | `140` | Maximum number of states GSBS searches for in the full pass |
+| `input_dir_partial` | `data/cropped_partial_window` | Input dir of cropped partial-window BOLDs (bold_crop output) |
+| `input_suffix_partial` | `_task-movieDM_..._partial_window_bold.nii.gz` | Filename suffix for partial-pass inputs |
+| `output_dir_partial` | `data/gsbs_output/cropped_partial_window` | Output dir for partial-window per-ROI boundary timeseries |
+| `kmax_partial` | `89` | Maximum number of states GSBS searches for in the partial pass |
+| `atlas_nifti` | `data/atlases/Schaefer2018_100Parcels_7Networks_movieDM_resamp_2p4mm_cropped.nii.gz` | Parcellation atlas NIfTI defining the ROIs |
+| `dmin` | `1` | Minimum TR distance from the diagonal ignored in the t-distance |
+| `blocksize` | `25` | Block size for GSBS state detection |
+| `finetune` | `1` | Finetuning window (TRs) around each boundary |
+| `cores_per_subject` | `4` | Thread cap per subject (sets OMP/BLAS/MKL/NUMEXPR thread limits) |
+| `statewise_detection` | `'true'` | Statewise GSBS detection (`'true'`) vs original one-boundary-per-iteration. Quoted string fed to the lambda boolean parser |
+| `finetune_order_weakest_first` | `'true'` | Finetune boundaries weakest-first (`'true'`). Quoted string for the lambda boolean parser |
+
+
 ### `container`
 | Key | Default | Description |
 |-----|---------|-------------|
-| `python_exec` | `python3` | Interpreter prefix for the crop worker. `python3` works for both Docker and Apptainer (the pipeline already runs inside the container). |
+| `python_exec` | `python3` | Interpreter prefix for the crop, GSBS, and stitch workers. `python3` works for both Docker and Apptainer (the pipeline already runs inside the container). |
 
 
 ### `preprocessing` (Stage 3)
